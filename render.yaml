@@ -1,0 +1,21 @@
+# Render.com 部署配置
+# 在 Render Dashboard → New → Blueprint → 选择此文件即可一键部署
+
+services:
+  - type: web
+    name: parkingsystem
+    env: node
+    region: oregon           # 可选：ohio / frankfurt
+    plan: free                # 免费档
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: AIVEN_URL
+        sync: false            # 在 Render 控制台手动填写
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        value: https://你的域名.onrender.com  # 部署后替换

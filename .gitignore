@@ -1,0 +1,24 @@
+# 敏感配置（绝对不能提交！）
+.env*.local
+
+# 构建产物
+.next/
+out/
+dist/
+
+# 依赖（体积大，不需要提交）
+node_modules/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器配置（个人配置不需要提交）
+.vscode/settings.json
+.idea/
+
+# TypeScript 编译缓存
+*.tsbuildinfo
+
+# 临时脚本
+tmp-*

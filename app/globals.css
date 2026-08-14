@@ -1,0 +1,85 @@
+/* 全局样式 - 简洁实用风格 */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f5f5; color: #333; line-height: 1.6;
+}
+a { color: #1677ff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+button {
+  cursor: pointer; padding: 10px 18px; border: none; border-radius: 6px;
+  font-size: 16px; transition: all .2s;
+}
+button:hover { opacity: .85; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: #1677ff; color: #fff; }
+.btn-danger { background: #ff4d4f; color: #fff; }
+.btn-success { background: #52c41a; color: #fff; }
+.btn-warning { background: #faad14; color: #fff; }
+.input, .select {
+  padding: 10px 12px; border: 1px solid #d9d9d9; border-radius: 6px;
+  font-size: 16px; width: 100%; transition: border .2s;
+}
+.input:focus, .select:focus { outline: none; border-color: #1677ff; }
+.card {
+  background: #fff; border-radius: 8px; padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.grid { display: grid; gap: 16px; }
+.flex { display: flex; gap: 12px; align-items: center; }
+.text-sm { font-size: 15px; }
+.text-xs { font-size: 14px; }
+.text-gray { color: #666; }
+.text-red { color: #ff4d4f; }
+.text-green { color: #52c41a; }
+.text-blue { color: #1677ff; }
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-4 { margin-bottom: 16px; }
+.p-4 { padding: 16px; }
+.text-center { text-align: center; }
+.font-bold { font-weight: 700; }
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 4px;
+  font-size: 14px; font-weight: 500;
+}
+.badge-green { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+.badge-gray { background: #fafafa; color: #666; border: 1px solid #d9d9d9; }
+.badge-blue { background: #e6f7ff; color: #1677ff; border: 1px solid #91d5ff; }
+.badge-orange { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; }
+.badge-yellow { background: #feffe6; color: #d4b106; border: 1px solid #fff566; }
+.badge-red { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+th { background: #fafafa; font-weight: 600; color: #333; }
+tr:hover td { background: #f5f9ff; }
+.status-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 4px;
+}
+.dot-unsold { background: #d9d9d9; }
+.dot-locked { background: #faad14; }
+.dot-sold { background: #1677ff; }
+.dot-group-locked { background: #fa8c16; }
+.dot-verified { background: #52c41a; }
+
+/* 可视化编辑区：编辑时显示表格边框，类似 Word */
+.doc-editor table { border-collapse: collapse; margin: 6px 0; }
+.doc-editor table, .doc-editor th, .doc-editor td { border: 1px solid #ccc; }
+.doc-editor td { min-width: 48px; min-height: 26px; padding: 4px 8px; }
+.doc-editor th { background: #f5f5f5; }
+
+/* 打印时只显示业务单据 / 查询结果的 .print-area 内容 */
+@media print {
+  body { background: #fff; }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area {
+    position: absolute; left: 0; top: 0; width: 100%;
+    border: none !important; box-shadow: none !important; max-width: 100% !important;
+    padding: 0 !important; margin: 0 !important;
+  }
+  .print-area table { border-collapse: collapse !important; }
+  .print-area th, .print-area td { border: 1px solid #000 !important; padding: 6px 8px !important; }
+}
