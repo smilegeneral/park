@@ -3,6 +3,13 @@ import { useState, useTransition } from 'react'
 import { updateOwnerInfo } from '@/lib/actions'
 import type { OwnerInfo, OwnerChangeLog } from '@/lib/types'
 
+// 兼容 Date / string 的时间格式化
+function fmtTime(v: any, len = 16): string {
+  if (!v) return ''
+  const s = v instanceof Date ? v.toISOString() : String(v)
+  return s.slice(0, len)
+}
+
 // ============================================================
 //  业主信息变更 - 客户端组件
 //  搜索 → 选择业主 → 修改姓名/电话/二电话 → 提交（写变更日志）
@@ -193,7 +200,7 @@ export default function OwnerList({
               )}
               {logs.map(l => (
                 <tr key={l.log_id}>
-                  <td style={{ fontSize: 12 }}>{l.changed_at?.slice(0, 16)}</td>
+                  <td style={{ fontSize: 12 }}>{fmtTime(l.changed_at)}</td>
                   <td style={{ fontWeight: 600 }}>{l.house_key}</td>
                   <td>{l.owner_name}</td>
                   <td>
