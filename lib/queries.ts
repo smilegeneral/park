@@ -258,6 +258,31 @@ export async function getChangeLogs(limit = 50): Promise<SpaceChangeLog[]> {
   return rows as SpaceChangeLog[]
 }
 
+// 模糊查询变更记录：车位号 / 房号 / 业主姓名 任意匹配
+export async function searchChangeLogs(keyword?: string, limit = 500): Promise<SpaceChangeLog[]> {
+  const kw = (keyword || '').trim()
+  if (!kw) {
+    const { rows } = await pool.query(
+      `SELECT * FROM parking_space_change_log ORDER BY changed_at DESC LIMIT $1`,
+      [limit]
+    )
+    return rows as SpaceChangeLog[]
+  }
+  const like = `%${kw}%`
+  const { rows } = await pool.query(
+    `SELECT * FROM parking_space_change_log
+     WHERE old_space_no ILIKE $1
+        OR new_space_no ILIKE $1
+        OR owner_name  ILIKE $1
+        OR old_house_key ILIKE $1
+        OR new_house_key ILIKE $1
+     ORDER BY changed_at DESC
+     LIMIT $2`,
+    [like, limit]
+  )
+  return rows as SpaceChangeLog[]
+}
+
 // ---------- 区域列表（动态从数据获取） ----------
 export async function getZones(): Promise<string[]> {
   const { rows } = await pool.query(`
