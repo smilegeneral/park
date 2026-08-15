@@ -44,6 +44,16 @@ export async function getAllSpaces(): Promise<ParkingSpace[]> {
   return rows as ParkingSpace[]
 }
 
+// ---------- 未售车位列表（取消车位界面用） ----------
+export async function getUnsoldSpaces(): Promise<ParkingSpace[]> {
+  const { rows } = await pool.query(`
+    SELECT * FROM parking_spaces
+    WHERE status = '未售'
+    ORDER BY garage_zone, space_num
+  `)
+  return rows as ParkingSpace[]
+}
+
 // ---------- 打印模板 ----------
 export async function getPrintTemplates(type?: string): Promise<PrintTemplate[]> {
   const { rows } = type
@@ -295,4 +305,51 @@ export async function getOldReceiptNo(spaceId: string): Promise<string | null> {
     [spaceId.trim()]
   )
   return rows.length ? (rows[0].receipt_no as string) : null
+}
+
+// ---------- 车位台账变更日志（新增 / 取消） ----------
+export interface SpaceLifecycleLog {
+  log_id: number
+  space_id: string
+  op_type: string       // 新增 / 取消
+  old_status: string | null
+  new_status: string | null
+  reason: string | null
+  operator: string | null
+  created_at: Date
+}
+
+// 写入一条车位台账变更记录（在事务内调用，使用传入的 client）
+export async function insertLifecycleLog(
+  client: any,
+  data: { space_id: string; op_type: string; old_status?: string | null; new_status?: string | null; reason?: string | null; operator?: string | null }
+) {
+  await client.query(
+    `INSERT INTO parking_space_lifecycle_log
+     (space_id, op_type, old_status, new_status, reason, operator, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,NOW())`,
+    [
+      data.space_id,
+      data.op_type,
+      data.old_status ?? null,
+      data.new_status ?? null,
+      data.reason ?? null,
+      data.operator ?? null,
+    ]
+  )
+}
+
+// 查询车位台账变更日志（默认按时间倒序）
+export async function getLifecycleLogs(spaceId?: string, limit = 200): Promise<SpaceLifecycleLog[]> {
+  const params: any[] = []
+  let where = ''
+  if (spaceId && spaceId.trim()) {
+    where = 'WHERE space_id = $1'
+    params.push(spaceId.trim())
+  }
+  const { rows } = await pool.query(
+    `SELECT * FROM parking_space_lifecycle_log ${where} ORDER BY created_at DESC LIMIT $${params.length + 1}`,
+    [...params, limit]
+  )
+  return rows as SpaceLifecycleLog[]
 }

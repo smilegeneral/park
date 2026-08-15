@@ -196,3 +196,18 @@ CREATE TABLE IF NOT EXISTS group_buy_verify_detail (
 
 -- ---------- 验证 ----------
 -- SELECT status, COUNT(*) FROM parking_spaces GROUP BY status ORDER BY status;
+
+-- 车位台账变更日志（记录新增 / 取消车位的时间与原因）
+CREATE TABLE IF NOT EXISTS parking_space_lifecycle_log (
+  log_id      SERIAL PRIMARY KEY,
+  space_id    VARCHAR(20)  NOT NULL,         -- 车位号
+  op_type     VARCHAR(20)  NOT NULL,         -- 操作类型：新增 / 取消
+  old_status  VARCHAR(20),                  -- 操作前状态
+  new_status  VARCHAR(20),                  -- 操作后状态
+  reason      TEXT,                          -- 取消原因 / 备注
+  operator    VARCHAR(50),                   -- 操作人
+  created_at  TIMESTAMP DEFAULT NOW()        -- 操作时间
+);
+
+CREATE INDEX IF NOT EXISTS idx_lifecycle_space ON parking_space_lifecycle_log(space_id);
+CREATE INDEX IF NOT EXISTS idx_lifecycle_time ON parking_space_lifecycle_log(created_at);

@@ -1,6 +1,7 @@
 'use server'
 import { withTransaction } from './db'
-import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo } from './queries'
+import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog } from './queries'
+import { auth } from './auth'
 import type { ParkingSpace } from './types'
 
 // ============================================================
@@ -696,5 +697,99 @@ export async function getOldConfirmNo(spaceId: string): Promise<{
   if (!sid) return { ok: false, error: '请输入车位号' }
   const receipt_no = await getOldReceiptNo(sid)
   return { ok: true, receipt_no }
+}
+
+// ==================== 新增车位 ====================
+export interface AddSpaceInput {
+  space_id: string          // 车位号（如 A-001）
+  garage_zone?: string      // 车库分区
+  space_type?: string       // 车位类型（如 标准/子母/微型）
+  building_no?: string
+  unit_no?: string
+  room_no?: string
+  remarks?: string
+  operator?: string         // 操作人
+}
+
+// 在车位台账中新增一条记录，初始状态=未售
+export async function addParkingSpace(input: AddSpaceInput) {
+  const space_id = (input.space_id || '').trim()
+  if (!space_id) throw new Error('请输入车位号')
+
+  return withTransaction(async (client) => {
+    // 防重复：主键冲突直接抛错
+    const exist = await client.query(`SELECT 1 FROM parking_spaces WHERE space_id = $1`, [space_id])
+    if (exist.rowCount && exist.rowCount > 0) {
+      throw new Error(`车位 ${space_id} 已存在，无法重复新增`)
+    }
+
+    const parts = space_id.split('-')
+    const garage_zone = (input.garage_zone || parts[0] || '').trim()
+    const building_no = (input.building_no || '').trim()
+    const unit_no = (input.unit_no || '').trim()
+    const room_no = (input.room_no || '').trim()
+
+    await client.query(
+      `INSERT INTO parking_spaces
+       (space_id, garage_zone, space_num, status, space_type, building_no, unit_no, room_no, remarks, created_at, updated_at)
+       VALUES ($1,$2,$3,'未售',$4,$5,$6,$7,$8,NOW(),NOW())`,
+      [
+        space_id,
+        garage_zone,
+        parts[1] || space_id,
+        (input.space_type || '').trim(),
+        building_no, unit_no, room_no,
+        (input.remarks || '').trim(),
+      ]
+    )
+
+    // 记录新增日志
+    const operator = ((await auth())?.user as { display_name?: string } | undefined)?.display_name || ''
+    await insertLifecycleLog(client, {
+      space_id,
+      op_type: '新增',
+      old_status: null,
+      new_status: '未售',
+      reason: (input.remarks || '').trim() || null,
+      operator: operator || null,
+    })
+
+    return { space_id, status: '未售' }
+  })
+}
+
+// ==================== 取消车位 ====================
+// 仅允许将"未售"车位置为"取消"，取消后不可销售
+export async function cancelParkingSpace(spaceId: string, remarks?: string, operator?: string) {
+  const sid = (spaceId || '').trim()
+  if (!sid) throw new Error('请选择要取消的车位')
+
+  return withTransaction(async (client) => {
+    const res = await client.query(
+      `UPDATE parking_spaces
+       SET status = '取消',
+           remarks = CASE WHEN $2 <> '' THEN $2 ELSE remarks END,
+           updated_at = NOW()
+       WHERE space_id = $1 AND status = '未售'
+       RETURNING *`,
+      [sid, (remarks || '').trim()]
+    )
+    if (res.rowCount === 0) {
+      throw new Error(`车位 ${sid} 不是未售状态，无法取消（可能已售/已预订/已取消）`)
+    }
+
+    // 记录取消日志（含原因）
+    const operator = ((await auth())?.user as { display_name?: string } | undefined)?.display_name || ''
+    await insertLifecycleLog(client, {
+      space_id: sid,
+      op_type: '取消',
+      old_status: '未售',
+      new_status: '取消',
+      reason: (remarks || '').trim() || null,
+      operator: operator || null,
+    })
+
+    return res.rows[0]
+  })
 }
 

@@ -29,6 +29,8 @@ export default async function DashboardPage() {
     ? [{ href: '/dashboard/distribution', label: '🅿️ 车位分布图', desc: '查看各车库车位分布与未售车位', perm: 'public' }]
     : [
         { href: '/dashboard/spaces', label: '🗺️ 销控图', desc: '查看全部车位状态，预订/销售', perm: 'spaces' },
+        { href: '/dashboard/spaces/manage', label: '➕ 车位管理', desc: '新增车位 / 取消车位（未售→取消）', perm: 'spaces' },
+        { href: '/dashboard/spaces/logs', label: '📋 台账变更日志', desc: '查询车位新增/取消时间与原因', perm: 'spaces' },
         { href: '/dashboard/query', label: '🔍 车位查询', desc: '多条件模糊查询车位', perm: 'spaces' },
         { href: '/dashboard/sale', label: '💰 车位销售', desc: '预订/直接销售车位给业主', perm: 'sale' },
         { href: '/dashboard/swap', label: '🔄 车位调换', desc: '业主间互换或换回开发商池', perm: 'swap' },
