@@ -37,13 +37,27 @@ export default async function SpaceLifecycleLogsPage({
 
   return (
     <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
-      <header className="flex mb-4" style={{ justifyContent: 'space-between' }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>📋 车位台账变更日志</h1>
-          <p className="text-sm text-gray">记录车位新增 / 取消的时间、原因与操作人</p>
+      {/* 顶部标题区 */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 20, flexWrap: 'wrap', gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div
+            style={{
+              width: 6, height: 44, borderRadius: 4,
+              background: 'linear-gradient(180deg,#1677ff,#52c41a)',
+            }}
+          />
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: .5 }}>📋 车位台账变更日志</h1>
+            <p className="text-sm text-gray">记录车位新增 / 取消的时间、原因与操作人</p>
+          </div>
         </div>
-        <Link href="/dashboard/spaces/manage" style={{ fontSize: 14 }}>← 车位管理</Link>
-      </header>
+        <Link href="/dashboard" className="btn-ghost">← 返回首页</Link>
+      </div>
 
       {/* 筛选表单（GET 提交，查询在服务端执行） */}
       <form method="get" className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -57,7 +71,7 @@ export default async function SpaceLifecycleLogsPage({
             {OP_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
-        <button type="submit" className="btn-primary">查询</button>
+        <button type="submit" className="btn-primary">🔍 查询</button>
         {spaceId && (
           <Link href="/dashboard/spaces/logs" className="btn-ghost">重置</Link>
         )}
@@ -80,7 +94,7 @@ export default async function SpaceLifecycleLogsPage({
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={7} className="text-center text-gray">
-                  {spaceId ? '暂无记录' : '请输入车位号后点击「查询」'}
+                  {spaceId ? '暂无记录' : '💡 请输入车位号后点击「查询」'}
                 </td></tr>
               )}
               {filtered.map((l) => (
@@ -101,8 +115,8 @@ export default async function SpaceLifecycleLogsPage({
             </tbody>
           </table>
           {filtered.length > 0 && (
-            <div className="text-xs text-gray" style={{ padding: '10px 14px' }}>
-              共 {filtered.length} 条{opType ? `（已按「${opType}」过滤）` : ''}
+            <div className="text-xs text-gray" style={{ padding: '10px 14px', background: '#fafafa' }}>
+              共 <b>{filtered.length}</b> 条{opType ? `（已按「${opType}」过滤）` : ''}
             </div>
           )}
         </div>
