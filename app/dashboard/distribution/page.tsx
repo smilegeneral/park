@@ -74,13 +74,28 @@ export default async function DistributionPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     title="点击在新窗口查看大图"
-                    style={{ display: 'block', width: '100%', height: '100%', cursor: 'pointer' }}
+                    style={{ display: 'block', position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }}
                   >
                     <img
                       src={map.image_url}
                       alt={`${zone}车位分布`}
                       style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                     />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        bottom: 8,
+                        padding: '4px 10px',
+                        fontSize: 12,
+                        color: '#fff',
+                        background: 'rgba(0,0,0,0.55)',
+                        borderRadius: 6,
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      点击查看大图 ↗
+                    </span>
                   </a>
                 ) : (
                   <span className="text-sm text-gray">暂无分布图（管理员可上传）</span>
