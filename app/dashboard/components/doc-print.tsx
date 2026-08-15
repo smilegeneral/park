@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import type { SpaceChangeLog } from '@/lib/types'
 
 // ============================================================
 //  业务单据预览打印组件
@@ -210,27 +211,150 @@ const slipBox: React.CSSProperties = {
 }
 const slipTable: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }
 
+// ===================== 车位变更申请单（基于变更日志真实字段） =====================
+export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
+  return (
+    <div className="print-area" style={slipBox}>
+      <h2 style={{
+        textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px',
+        fontFamily: '"SimHei", "黑体", serif',
+      }}>
+        车位变更申请单
+      </h2>
+      <div style={{ textAlign: 'right', fontSize: 14, marginBottom: 12 }}>
+        调换单号：{log.swap_order_no || ''}
+      </div>
+
+      <table style={slipTable}>
+        <colgroup>
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '30%' }} />
+          <col style={{ width: '25%' }} />
+          <col style={{ width: '25%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <td style={cellHead}>原车位号</td>
+            <td style={cellVal}>{log.old_space_no}</td>
+            <td style={cellHead}>楼栋-单元-房号</td>
+            <td style={cellVal}>{log.old_house_key || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>原车位价格</td>
+            <td style={cellVal}>{log.old_space_price != null ? `¥${Number(log.old_space_price).toFixed(0)}` : ''}</td>
+            <td style={cellHead}>原车位类型</td>
+            <td style={cellVal}>{log.old_space_type || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>业主姓名</td>
+            <td style={cellVal}>{log.owner_name}</td>
+            <td style={cellHead}>联系电话</td>
+            <td style={cellVal}>{log.phone || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>变更后车位号</td>
+            <td style={cellVal}>{log.new_space_no}</td>
+            <td style={cellHead}>变更后车位类型</td>
+            <td style={cellVal}>{log.new_space_type || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>变更后车位价格</td>
+            <td style={cellVal}>{log.new_space_price != null ? `¥${Number(log.new_space_price).toFixed(0)}` : ''}</td>
+            <td style={cellHead}>差价</td>
+            <td style={cellVal}>{log.price_difference != null ? `¥${Number(log.price_difference).toFixed(0)}` : ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>原车位确认单号</td>
+            <td style={cellVal}>{log.receipt_no || ''}</td>
+            <td style={cellHead}>新车位确认单号</td>
+            <td style={cellVal}>{log.new_receipt_no || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>变更原因</td>
+            <td colSpan={3} style={{ ...cellVal, textAlign: 'left' }}>{log.change_reason || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>备注</td>
+            <td colSpan={3} style={{ ...cellVal, textAlign: 'left' }}>{log.remarks || ''}</td>
+          </tr>
+          <tr>
+            <td colSpan={2} style={cellHead}>业主签字</td>
+            <td colSpan={2} style={cellHead}>车位管理签字</td>
+          </tr>
+          <tr>
+            <td colSpan={2} style={sigCell}>{''}</td>
+            <td colSpan={2} style={sigCell}>{''}</td>
+          </tr>
+          <tr>
+            <td colSpan={2} style={cellHead}>分管领导签字</td>
+            <td style={cellHead}>申请日期</td>
+            <td style={{ ...cellVal, textAlign: 'center' }}>{log.changed_at?.slice(0, 10) || ''}</td>
+          </tr>
+          <tr>
+            <td colSpan={2} style={sigCell}>{''}</td>
+            <td colSpan={2} style={sigCell}>{''}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ===================== 车位牌（A4 横向） =====================
+// 三行：未售车位 / 可临时停放 / 车位号：{{old_space_no}}（右对齐，字号小）
+export function SpacePlate({ spaceNo }: { spaceNo: string }) {
+  return (
+    <div className="print-area plate-a4">
+      <div style={{
+        height: '100%', width: '100%',
+        display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'stretch',
+        fontFamily: '"SimHei", "黑体", serif', fontWeight: 700,
+        padding: '0 40px',
+      }}>
+        <div style={{ textAlign: 'center', fontSize: 190, lineHeight: 1.05, color: '#000' }}>
+          未售车位
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 190, lineHeight: 1.05, color: '#000', marginTop: 10 }}>
+          可临时停放
+        </div>
+        <div style={{ textAlign: 'right', fontSize: 72, color: '#000', marginTop: 26, paddingRight: 12 }}>
+          车位号：{spaceNo}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ===================== 业务单据预览打印面板 =====================
-// 根据传入的 saleOrder / swapOrder 数据，提供下拉选择并预览打印
+// 支持：销售单、调换单、车位变更申请单（基于变更日志）、车位牌
 export default function DocPrintPanel({
   saleOrder,
   swapOrder,
+  changeLog,
+  initialDoc = 'apply',
 }: {
   saleOrder?: SaleOrder | null
   swapOrder?: SwapOrder | null
+  changeLog?: SpaceChangeLog | null
+  initialDoc?: 'sale' | 'swap' | 'apply' | 'plate'
 }) {
   const hasSale = !!saleOrder
   const hasSwap = !!swapOrder
-  const [docType, setDocType] = useState<'sale' | 'swap'>(hasSale ? 'sale' : 'swap')
-
-  // 没有可用单据时提示
-  if (!hasSale && !hasSwap) return null
-
-  const current: 'sale' | 'swap' = docType === 'sale' && hasSale ? 'sale'
-    : docType === 'swap' && hasSwap ? 'swap'
+  const hasChange = !!changeLog
+  const [docType, setDocType] = useState<'sale' | 'swap' | 'apply' | 'plate'>(
+    (hasChange && (initialDoc === 'apply' || initialDoc === 'plate'))
+      ? initialDoc
       : hasSale ? 'sale' : 'swap'
+  )
 
-  const data = current === 'sale' ? saleOrder : swapOrder
+  // 无可用单据
+  if (!hasSale && !hasSwap && !hasChange) return null
+
+  const showSale = hasSale && (docType === 'sale')
+  const showSwap = hasSwap && (docType === 'swap')
+  const showApply = hasChange && (docType === 'apply')
+  const showPlate = hasChange && (docType === 'plate')
 
   function handlePrint() {
     if (typeof window !== 'undefined') window.print()
@@ -243,12 +367,14 @@ export default function DocPrintPanel({
           业务单据：
           <select
             className="select"
-            value={current}
-            onChange={e => setDocType(e.target.value as 'sale' | 'swap')}
+            value={docType}
+            onChange={e => setDocType(e.target.value as any)}
             style={{ marginLeft: 6 }}
           >
             {hasSale && <option value="sale">车位销售单</option>}
             {hasSwap && <option value="swap">车位调换单</option>}
+            {hasChange && <option value="apply">车位变更申请单</option>}
+            {hasChange && <option value="plate">车位牌</option>}
           </select>
         </label>
         <button type="button" className="btn-primary" onClick={handlePrint} style={{ fontSize: 14 }}>
@@ -256,8 +382,10 @@ export default function DocPrintPanel({
         </button>
       </div>
 
-      {current === 'sale' && saleOrder && <SaleSlip order={saleOrder} />}
-      {current === 'swap' && swapOrder && <SwapSlip order={swapOrder} />}
+      {showSale && saleOrder && <SaleSlip order={saleOrder} />}
+      {showSwap && swapOrder && <SwapSlip order={swapOrder} />}
+      {showApply && changeLog && <SwapApplySlip log={changeLog} />}
+      {showPlate && changeLog && <SpacePlate spaceNo={changeLog.old_space_no} />}
     </div>
   )
 }
