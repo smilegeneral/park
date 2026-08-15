@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // ============ Cloudflare R2 对象存储（S3 兼容，公开读） ============
 // 所需环境变量（在 Vercel 项目设置 / .env.local 中配置）：
@@ -32,6 +33,23 @@ export function getPublicUrl(key: string): string {
   const base = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '')
   if (!base) throw new Error('R2 未配置：请设置 R2_PUBLIC_URL（公开访问基础 URL）')
   return `${base}/${key}`
+}
+
+// 生成前端直传 R2 的 presigned PUT URL（Vercel 函数体仅返回签名，不经过大文件）
+// 这样可绕过 Vercel 对请求体 ~4.5MB 的限制，图片由浏览器直接 PUT 到 R2。
+export async function getPresignedPutUrl(
+  key: string,
+  contentType: string,
+  expiresIn = 600
+): Promise<string> {
+  const bucket = process.env.R2_BUCKET
+  if (!bucket) throw new Error('R2 未配置：请设置 R2_BUCKET')
+  const cmd = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
+  })
+  return await getSignedUrl(getClient(), cmd, { expiresIn })
 }
 
 // 上传文件流/Buffer 到 R2，返回对象 key（不含 base URL）

@@ -25,20 +25,31 @@ export default function DistributionUploader({
     setLoading(true)
     setMsg('')
     try {
-      // 1) 先上传到 R2 对象存储，拿到公开 URL
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('zone', zone)
-      const up = await fetch('/api/upload', { method: 'POST', body: fd })
-      const upRes = await up.json()
-      if (!up.ok || !upRes.url) {
-        throw new Error(upRes.error || '图片上传失败')
+      // 1) 向 Vercel 函数请求 presigned URL（请求体极小，绕过 4.5MB 限制）
+      const meta = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zone, fileType: file.type, fileSize: file.size }),
+      })
+      const metaRes = await meta.json()
+      if (!meta.ok || !metaRes.uploadUrl) {
+        throw new Error(metaRes.error || '获取上传地址失败')
       }
 
-      // 2) 把 URL 写入车库台账
+      // 2) 浏览器直接 PUT 文件到 R2（不经过 Vercel 函数体）
+      const putRes = await fetch(metaRes.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      })
+      if (!putRes.ok) {
+        throw new Error(`直传 R2 失败（${putRes.status}）`)
+      }
+
+      // 3) 把公开 URL 写入车库台账
       const res = await uploadGarageMap({
         zone,
-        image_url: upRes.url,
+        image_url: metaRes.publicUrl,
         image_name: file.name,
         uploaded_by: undefined,
       })

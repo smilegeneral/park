@@ -19,6 +19,7 @@ export default function ManageSpacesPage({
 
   // ---------------- 新增车位 ----------------
   const [spaceId, setSpaceId] = useState('')
+  const [changeOrderNo, setChangeOrderNo] = useState('')
   const [garageZone, setGarageZone] = useState(zone || 'A区')
   const [spaceType, setSpaceType] = useState('')
   const [remarks, setRemarks] = useState('')
@@ -28,6 +29,7 @@ export default function ManageSpacesPage({
   const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState<string>('')
   const [cancelRemarks, setCancelRemarks] = useState('')
+  const [cancelChangeOrderNo, setCancelChangeOrderNo] = useState('')
 
   const loadUnsold = useCallback(() => {
     startTransition(async () => {
@@ -49,12 +51,14 @@ export default function ManageSpacesPage({
       try {
         const r = await addParkingSpace({
           space_id: spaceId,
+          change_order_no: changeOrderNo,
           garage_zone: garageZone,
           space_type: spaceType,
           remarks,
         })
         setMsg({ type: 'ok', text: `✅ 已新增车位 ${r.space_id}（状态：未售）` })
         setSpaceId('')
+        setChangeOrderNo('')
         setSpaceType('')
         setRemarks('')
       } catch (e: any) {
@@ -73,10 +77,11 @@ export default function ManageSpacesPage({
     if (!confirm(`确认取消车位 ${selected}？取消后该车位将不可销售。`)) return
     startTransition(async () => {
       try {
-        await cancelParkingSpace(selected, cancelRemarks)
+        await cancelParkingSpace(selected, cancelRemarks, cancelChangeOrderNo)
         setMsg({ type: 'ok', text: `✅ 车位 ${selected} 已取消，不可销售` })
         setSelected('')
         setCancelRemarks('')
+        setCancelChangeOrderNo('')
         loadUnsold()
       } catch (e: any) {
         setMsg({ type: 'err', text: `❌ ${e.message}` })
@@ -161,6 +166,17 @@ export default function ManageSpacesPage({
               }}
             >
               <div className="form-row">
+                <label className="form-label">变更单号</label>
+                <input
+                  className="form-input"
+                  value={changeOrderNo}
+                  placeholder="如 BG-2026-001（选填）"
+                  onChange={(e) => setChangeOrderNo(e.target.value)}
+                />
+                <div className="text-xs text-gray" style={{ marginTop: 4 }}>本次变更对应的单据编号，将记入台账变更日志</div>
+              </div>
+
+              <div className="form-row">
                 <label className="form-label">车位号 <span className="text-red">*</span></label>
                 <input
                   className="form-input"
@@ -233,6 +249,17 @@ export default function ManageSpacesPage({
                 padding: '18px 20px',
               }}
             >
+              <div className="form-row">
+                <label className="form-label">变更单号</label>
+                <input
+                  className="form-input"
+                  value={cancelChangeOrderNo}
+                  placeholder="如 QX-2026-001（选填）"
+                  onChange={(e) => setCancelChangeOrderNo(e.target.value)}
+                />
+                <div className="text-xs text-gray" style={{ marginTop: 4 }}>本次取消对应的单据编号，将记入台账变更日志</div>
+              </div>
+
               <div className="form-row">
                 <label className="form-label">选择未售车位 <span className="text-red">*</span></label>
                 {!loaded ? (

@@ -84,6 +84,7 @@ export default async function SpaceLifecycleLogsPage({
               <tr>
                 <th>操作时间</th>
                 <th>车位号</th>
+                <th>变更单号</th>
                 <th>操作类型</th>
                 <th>变更前状态</th>
                 <th>变更后状态</th>
@@ -93,7 +94,7 @@ export default async function SpaceLifecycleLogsPage({
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center text-gray">
+                <tr><td colSpan={8} className="text-center text-gray">
                   {spaceId ? '暂无记录' : '💡 请输入车位号后点击「查询」'}
                 </td></tr>
               )}
@@ -101,6 +102,7 @@ export default async function SpaceLifecycleLogsPage({
                 <tr key={l.log_id}>
                   <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.created_at)}</td>
                   <td style={{ fontWeight: 600 }}>{l.space_id}</td>
+                  <td>{l.change_order_no || '—'}</td>
                   <td>
                     <span className={`badge ${l.op_type === '新增' ? 'badge-green' : 'badge-orange'}`}>
                       {l.op_type}
