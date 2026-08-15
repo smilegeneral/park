@@ -1,14 +1,10 @@
-'use client'
-import { useCallback, useState, useTransition } from 'react'
 import { getLifecycleLogs } from '@/lib/queries'
-import type { SpaceLifecycleLog } from '@/lib/queries'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
-const OP_TYPES = [
-  { value: '', label: '全部类型' },
-  { value: '新增', label: '新增车位' },
-  { value: '取消', label: '取消车位' },
-]
+// ============================================================
+//  车位台账变更日志 - 新增/取消记录查询（服务端组件）
+// ============================================================
 
 function fmtTime(t: any) {
   if (!t) return ''
@@ -18,76 +14,56 @@ function fmtTime(t: any) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-export default function SpaceLifecycleLogsPage() {
-  const [logs, setLogs] = useState<SpaceLifecycleLog[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [spaceId, setSpaceId] = useState('')
-  const [opType, setOpType] = useState('')
-  const [pending, startTransition] = useTransition()
-  const [error, setError] = useState('')
+const OP_TYPES = [
+  { value: '', label: '全部类型' },
+  { value: '新增', label: '新增车位' },
+  { value: '取消', label: '取消车位' },
+]
 
-  // 本地筛选：先拉取（可带车位号），再用类型在前端过滤
-  const doQuery = useCallback(
-    (sid: string) => {
-      setError('')
-      startTransition(async () => {
-        try {
-          const list = await getLifecycleLogs(sid.trim() || undefined, 500)
-          setLogs(list)
-          setLoaded(true)
-        } catch (e: any) {
-          setError(`❌ 查询失败：${e.message}`)
-          setLoaded(true)
-        }
-      })
-    },
-    []
-  )
+export default async function SpaceLifecycleLogsPage({
+  searchParams,
+}: {
+  searchParams: { space_id?: string; op_type?: string }
+}) {
+  const spaceId = (searchParams.space_id || '').trim()
+  const opType = (searchParams.op_type || '').trim()
+
+  // 仅在给出车位号时查询，避免初次进入拉取全表
+  const logs = spaceId
+    ? await getLifecycleLogs(spaceId, 500)
+    : []
 
   const filtered = opType ? logs.filter((l) => l.op_type === opType) : logs
 
   return (
-    <div className="card">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+    <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+      <header className="flex mb-4" style={{ justifyContent: 'space-between' }}>
         <div>
-          <h2 style={{ margin: 0 }}>📋 车位台账变更日志</h2>
-          <div className="text-sm text-gray" style={{ marginTop: 4 }}>记录车位新增 / 取消的时间、原因与操作人</div>
+          <h1 style={{ fontSize: 20, fontWeight: 700 }}>📋 车位台账变更日志</h1>
+          <p className="text-sm text-gray">记录车位新增 / 取消的时间、原因与操作人</p>
         </div>
-        <Link href="/dashboard/spaces/manage" className="btn-ghost">← 车位管理</Link>
-      </div>
+        <Link href="/dashboard/spaces/manage" style={{ fontSize: 14 }}>← 车位管理</Link>
+      </header>
 
-      {/* 筛选区 */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+      {/* 筛选表单（GET 提交，查询在服务端执行） */}
+      <form method="get" className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="form-row" style={{ margin: 0 }}>
           <label className="form-label">车位号</label>
-          <input
-            className="form-input"
-            value={spaceId}
-            placeholder="如 A-001（留空查全部）"
-            onChange={(e) => setSpaceId(e.target.value)}
-          />
+          <input className="form-input" name="space_id" defaultValue={spaceId} placeholder="如 A-001（留空查全部）" />
         </div>
         <div className="form-row" style={{ margin: 0 }}>
           <label className="form-label">操作类型</label>
-          <select className="form-input" value={opType} onChange={(e) => setOpType(e.target.value)}>
+          <select className="form-input" name="op_type" defaultValue={opType}>
             {OP_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
-        <button type="button" className="btn-primary" onClick={() => doQuery(spaceId)} disabled={pending}>
-          {pending ? '查询中…' : '查询'}
-        </button>
-        {loaded && (
-          <button type="button" className="btn-ghost" onClick={() => { setSpaceId(''); setOpType(''); setLogs([]); setLoaded(false) }}>
-            重置
-          </button>
+        <button type="submit" className="btn-primary">查询</button>
+        {spaceId && (
+          <Link href="/dashboard/spaces/logs" className="btn-ghost">重置</Link>
         )}
-      </div>
+      </form>
 
-      {error && <div className="alert-error" style={{ marginBottom: 16 }}>{error}</div>}
-
-      {!loaded ? (
-        <div className="text-sm text-gray">请输入条件后点击「查询」，或留空查询全部记录。</div>
-      ) : (
+      <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
@@ -103,14 +79,16 @@ export default function SpaceLifecycleLogsPage() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center text-gray">暂无记录</td></tr>
+                <tr><td colSpan={7} className="text-center text-gray">
+                  {spaceId ? '暂无记录' : '请输入车位号后点击「查询」'}
+                </td></tr>
               )}
               {filtered.map((l) => (
                 <tr key={l.log_id}>
                   <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.created_at)}</td>
                   <td style={{ fontWeight: 600 }}>{l.space_id}</td>
                   <td>
-                    <span className={`badge ${l.op_type === '新增' ? 'badge-green' : 'badge-red'}`}>
+                    <span className={`badge ${l.op_type === '新增' ? 'badge-green' : 'badge-orange'}`}>
                       {l.op_type}
                     </span>
                   </td>
@@ -122,11 +100,13 @@ export default function SpaceLifecycleLogsPage() {
               ))}
             </tbody>
           </table>
-          <div className="text-xs text-gray" style={{ marginTop: 8 }}>
-            共 {filtered.length} 条{opType ? `（已按「${opType}」过滤）` : ''}
-          </div>
+          {filtered.length > 0 && (
+            <div className="text-xs text-gray" style={{ padding: '10px 14px' }}>
+              共 {filtered.length} 条{opType ? `（已按「${opType}」过滤）` : ''}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </section>
+    </main>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
-import { use, useCallback, useState, useTransition } from 'react'
-import { addParkingSpace, cancelParkingSpace } from '@/lib/actions'
-import { getUnsoldSpaces } from '@/lib/queries'
+import { useCallback, useState, useTransition } from 'react'
+import { addParkingSpace, cancelParkingSpace, fetchUnsoldSpaces } from '@/lib/actions'
 import type { ParkingSpace } from '@/lib/types'
 import Link from 'next/link'
 
@@ -11,9 +10,9 @@ const ZONES = ['A区', 'B区', 'C区', 'D1区', 'D2区', 'E区']
 export default function ManageSpacesPage({
   params,
 }: {
-  params: Promise<{ zone: string }>
+  params: { zone: string }
 }) {
-  const { zone } = use(params)
+  const { zone } = params
   const [tab, setTab] = useState<'add' | 'cancel'>('add')
   const [pending, startTransition] = useTransition()
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
@@ -33,7 +32,7 @@ export default function ManageSpacesPage({
   const loadUnsold = useCallback(() => {
     startTransition(async () => {
       try {
-        const list = await getUnsoldSpaces()
+        const list = await fetchUnsoldSpaces()
         setUnsold(list)
         setLoaded(true)
         setSelected('')

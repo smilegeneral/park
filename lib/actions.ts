@@ -1,6 +1,6 @@
 'use server'
 import { withTransaction } from './db'
-import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog } from './queries'
+import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, getUnsoldSpaces } from './queries'
 import { auth } from './auth'
 import type { ParkingSpace } from './types'
 
@@ -791,5 +791,10 @@ export async function cancelParkingSpace(spaceId: string, remarks?: string, oper
 
     return res.rows[0]
   })
+}
+
+// 供客户端组件调用：查询未售车位（封装为 server action，避免 pg 进入浏览器 bundle）
+export async function fetchUnsoldSpaces(): Promise<ParkingSpace[]> {
+  return await getUnsoldSpaces()
 }
 
