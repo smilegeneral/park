@@ -152,8 +152,8 @@ CREATE TABLE IF NOT EXISTS parking_space_change_log (
   price_difference NUMERIC(12,2) DEFAULT 0,
   swap_type VARCHAR(20),
   change_reason TEXT,
-  receipt_no VARCHAR(30),
-  new_receipt_no VARCHAR(30),
+  receipt_no VARCHAR(30),          -- 旧车位确认单号
+  new_receipt_no VARCHAR(30),      -- 新车位确认单号
   operator VARCHAR(50),
   changed_at TIMESTAMP DEFAULT NOW(),
   remarks TEXT,
@@ -161,6 +161,10 @@ CREATE TABLE IF NOT EXISTS parking_space_change_log (
   preview_url TEXT,
   swap_order_no VARCHAR(50)
 );
+
+-- 字段中文注释
+COMMENT ON COLUMN parking_space_change_log.receipt_no IS '旧车位确认单号';
+COMMENT ON COLUMN parking_space_change_log.new_receipt_no IS '新车位确认单号';
 
 -- 业主信息变更日志
 CREATE TABLE IF NOT EXISTS owner_info_change_log (
