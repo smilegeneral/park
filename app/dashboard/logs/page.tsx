@@ -6,6 +6,9 @@ import ChangeLogTable from './change-log-table'
 //  变更日志 - 车位调换/核销全留痕
 // ============================================================
 
+// 该页需在请求时查库，禁止构建期静态预渲染（避免构建时连库失败）
+export const dynamic = 'force-dynamic'
+
 export default async function LogsPage() {
   const logs = await getChangeLogs(500)
 
