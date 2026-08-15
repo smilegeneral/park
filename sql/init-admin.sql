@@ -210,5 +210,16 @@ CREATE TABLE IF NOT EXISTS parking_space_lifecycle_log (
   created_at  TIMESTAMP DEFAULT NOW()        -- 操作时间
 );
 
+-- 字段中文注释
+COMMENT ON COLUMN parking_space_lifecycle_log.log_id IS '日志ID（主键，自增）';
+COMMENT ON COLUMN parking_space_lifecycle_log.space_id IS '车位号';
+COMMENT ON COLUMN parking_space_lifecycle_log.op_type IS '操作类型（新增/取消）';
+COMMENT ON COLUMN parking_space_lifecycle_log.old_status IS '操作前状态';
+COMMENT ON COLUMN parking_space_lifecycle_log.new_status IS '操作后状态';
+COMMENT ON COLUMN parking_space_lifecycle_log.reason IS '取消原因/备注';
+COMMENT ON COLUMN parking_space_lifecycle_log.operator IS '操作人';
+COMMENT ON COLUMN parking_space_lifecycle_log.created_at IS '操作时间';
+COMMENT ON COLUMN parking_space_lifecycle_log.change_order_no IS '变更单号';
+
 CREATE INDEX IF NOT EXISTS idx_lifecycle_space ON parking_space_lifecycle_log(space_id);
 CREATE INDEX IF NOT EXISTS idx_lifecycle_time ON parking_space_lifecycle_log(created_at);

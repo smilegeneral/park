@@ -28,10 +28,8 @@ export default async function SpaceLifecycleLogsPage({
   const spaceId = (searchParams.space_id || '').trim()
   const opType = (searchParams.op_type || '').trim()
 
-  // 仅在给出车位号时查询，避免初次进入拉取全表
-  const logs = spaceId
-    ? await getLifecycleLogs(spaceId, 500)
-    : []
+  // 车位号留空则查全部（最多 500 条）；非空时按车位号模糊匹配
+  const logs = await getLifecycleLogs(spaceId, 500)
 
   const filtered = opType ? logs.filter((l) => l.op_type === opType) : logs
 
@@ -63,7 +61,7 @@ export default async function SpaceLifecycleLogsPage({
       <form method="get" className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="form-row" style={{ margin: 0 }}>
           <label className="form-label">车位号</label>
-          <input className="form-input" name="space_id" defaultValue={spaceId} placeholder="如 A-001（留空查全部）" />
+          <input className="form-input" name="space_id" defaultValue={spaceId} placeholder="如 A-246（留空查全部，支持模糊）" />
         </div>
         <div className="form-row" style={{ margin: 0 }}>
           <label className="form-label">操作类型</label>
@@ -95,7 +93,7 @@ export default async function SpaceLifecycleLogsPage({
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={8} className="text-center text-gray">
-                  {spaceId ? '暂无记录' : '💡 请输入车位号后点击「查询」'}
+                  {spaceId ? '暂无记录' : '暂无记录'}
                 </td></tr>
               )}
               {filtered.map((l) => (

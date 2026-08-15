@@ -342,12 +342,13 @@ export async function insertLifecycleLog(
 }
 
 // 查询车位台账变更日志（默认按时间倒序）
+// spaceId 为空查全部；非空时按车位号模糊匹配（ILIKE，忽略大小写）
 export async function getLifecycleLogs(spaceId?: string, limit = 200): Promise<SpaceLifecycleLog[]> {
   const params: any[] = []
   let where = ''
   if (spaceId && spaceId.trim()) {
-    where = 'WHERE space_id = $1'
-    params.push(spaceId.trim())
+    where = 'WHERE space_id ILIKE $1'
+    params.push(`%${spaceId.trim()}%`)
   }
   const { rows } = await pool.query(
     `SELECT * FROM parking_space_lifecycle_log ${where} ORDER BY created_at DESC LIMIT $${params.length + 1}`,
