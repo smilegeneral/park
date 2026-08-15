@@ -69,11 +69,19 @@ export default async function DistributionPage() {
                 }}
               >
                 {map?.image_url ? (
-                  <img
-                    src={map.image_url}
-                    alt={`${zone}车位分布`}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
+                  <a
+                    href={map.image_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="点击在新窗口查看大图"
+                    style={{ display: 'block', width: '100%', height: '100%', cursor: 'pointer' }}
+                  >
+                    <img
+                      src={map.image_url}
+                      alt={`${zone}车位分布`}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  </a>
                 ) : (
                   <span className="text-sm text-gray">暂无分布图（管理员可上传）</span>
                 )}
