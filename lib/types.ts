@@ -258,7 +258,7 @@ export const GARAGE_ZONES: string[] = ['A区', 'B区', 'C区', 'D1区', 'D2区',
 export interface GarageMap {
   id: number
   zone: string            // A区/B区/C区/D1区/D2区/E区
-  image_data: string | null  // base64（含 data:image/... 前缀）
+  image_url: string | null   // 对象存储公开 URL（R2）
   image_name: string | null
   uploaded_by: string | null
   created_at?: string

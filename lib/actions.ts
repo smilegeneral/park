@@ -624,39 +624,42 @@ export async function changeMyPassword(input: { userId: number; oldPassword: str
 }
 
 // ==================== 车位分布图：上传车库图片 ====================
-// zone 限定为六个区之一；image_data 为 base64（含 data:image/... 前缀），限制 3MB
+// zone 限定为六个区之一；image_url 为对象存储公开 URL（R2）
 export interface UploadGarageMapInput {
   zone: string
-  image_data: string   // base64（含 data: 前缀）
+  image_url: string
   image_name?: string
   uploaded_by?: string
 }
 
 const GARAGE_MAP_ZONES = ['A区', 'B区', 'C区', 'D1区', 'D2区', 'E区']
-const MAX_MAP_BYTES = 3 * 1024 * 1024
 
 export async function uploadGarageMap(input: UploadGarageMapInput) {
   if (!GARAGE_MAP_ZONES.includes(input.zone)) {
     throw new Error('车库分区不合法，仅支持 A区/B区/C区/D1区/D2区/E区')
   }
-  const data = input.image_data || ''
-  // 估算 base64 实际字节大小（去掉 data: 前缀与空白）
-  const m = data.match(/^data:image\/\w+;base64,(.*)$/)
-  if (!m) throw new Error('图片格式不正确（需为 base64 图片）')
-  const byteLen = Math.floor((m[1].replace(/\s/g, '').length * 3) / 4)
-  if (byteLen > MAX_MAP_BYTES) throw new Error('图片过大，请控制在 3MB 以内')
+  const url = (input.image_url || '').trim()
+  if (!url) throw new Error('图片地址无效')
 
   return withTransaction(async (client) => {
+    // 先查旧图，替换后删除旧对象（释放 R2 空间）
+    const old = await client.query(`SELECT image_url FROM garage_maps WHERE zone = $1`, [input.zone])
+    if (old.rowCount && old.rowCount > 0 && old.rows[0].image_url) {
+      const { keyFromUrl, deleteFromR2 } = await import('./object-storage')
+      const oldKey = keyFromUrl(old.rows[0].image_url)
+      if (oldKey) await deleteFromR2(oldKey)
+    }
+
     // upsert：同一分区覆盖更新
     await client.query(
-      `INSERT INTO garage_maps (zone, image_data, image_name, uploaded_by, updated_at)
+      `INSERT INTO garage_maps (zone, image_url, image_name, uploaded_by, updated_at)
        VALUES ($1,$2,$3,$4,NOW())
        ON CONFLICT (zone) DO UPDATE
-       SET image_data = EXCLUDED.image_data,
+       SET image_url = EXCLUDED.image_url,
            image_name = EXCLUDED.image_name,
            uploaded_by = EXCLUDED.uploaded_by,
            updated_at = NOW()`,
-      [input.zone, data, input.image_name || null, input.uploaded_by || null]
+      [input.zone, url, input.image_name || null, input.uploaded_by || null]
     )
     return { ok: true, zone: input.zone }
   })
@@ -708,6 +711,7 @@ export interface AddSpaceInput {
   unit_no?: string
   room_no?: string
   remarks?: string
+  change_order_no?: string  // 变更单号
   operator?: string         // 操作人
 }
 
@@ -748,6 +752,7 @@ export async function addParkingSpace(input: AddSpaceInput) {
     await insertLifecycleLog(client, {
       space_id,
       op_type: '新增',
+      change_order_no: (input.change_order_no || '').trim() || null,
       old_status: null,
       new_status: '未售',
       reason: (input.remarks || '').trim() || null,
@@ -760,7 +765,7 @@ export async function addParkingSpace(input: AddSpaceInput) {
 
 // ==================== 取消车位 ====================
 // 仅允许将"未售"车位置为"取消"，取消后不可销售
-export async function cancelParkingSpace(spaceId: string, remarks?: string, operator?: string) {
+export async function cancelParkingSpace(spaceId: string, remarks?: string, changeOrderNo?: string, operator?: string) {
   const sid = (spaceId || '').trim()
   if (!sid) throw new Error('请选择要取消的车位')
 
@@ -783,6 +788,7 @@ export async function cancelParkingSpace(spaceId: string, remarks?: string, oper
     await insertLifecycleLog(client, {
       space_id: sid,
       op_type: '取消',
+      change_order_no: (changeOrderNo || '').trim() || null,
       old_status: '未售',
       new_status: '取消',
       reason: (remarks || '').trim() || null,

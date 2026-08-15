@@ -202,6 +202,7 @@ CREATE TABLE IF NOT EXISTS parking_space_lifecycle_log (
   log_id      SERIAL PRIMARY KEY,
   space_id    VARCHAR(20)  NOT NULL,         -- 车位号
   op_type     VARCHAR(20)  NOT NULL,         -- 操作类型：新增 / 取消
+  change_order_no VARCHAR(50),               -- 变更单号
   old_status  VARCHAR(20),                  -- 操作前状态
   new_status  VARCHAR(20),                  -- 操作后状态
   reason      TEXT,                          -- 取消原因 / 备注

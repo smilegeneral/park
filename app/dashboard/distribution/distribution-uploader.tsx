@@ -25,15 +25,20 @@ export default function DistributionUploader({
     setLoading(true)
     setMsg('')
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
+      // 1) 先上传到 R2 对象存储，拿到公开 URL
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('zone', zone)
+      const up = await fetch('/api/upload', { method: 'POST', body: fd })
+      const upRes = await up.json()
+      if (!up.ok || !upRes.url) {
+        throw new Error(upRes.error || '图片上传失败')
+      }
+
+      // 2) 把 URL 写入车库台账
       const res = await uploadGarageMap({
         zone,
-        image_data: base64,
+        image_url: upRes.url,
         image_name: file.name,
         uploaded_by: undefined,
       })
@@ -42,7 +47,7 @@ export default function DistributionUploader({
         setFile(null)
         router.refresh()
       } else {
-        setMsg('上传失败')
+        setMsg('保存失败')
       }
     } catch (e: any) {
       setMsg(e?.message || '上传失败')
@@ -55,7 +60,7 @@ export default function DistributionUploader({
     <div className="flex" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
       <input
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp"
         onChange={e => setFile(e.target.files?.[0] || null)}
         className="text-sm"
       />

@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS garage_maps (
   id SERIAL PRIMARY KEY,
   zone VARCHAR(20) UNIQUE NOT NULL,   -- A区/B区/C区/D1区/D2区/E区
-  image_data TEXT,                    -- 图片 base64（含 data:image/... 前缀）
+  image_url VARCHAR(512),             -- 对象存储公开 URL（R2）
   image_name VARCHAR(100),            -- 原始文件名
   uploaded_by VARCHAR(50),
   created_at TIMESTAMP DEFAULT NOW(),

@@ -312,6 +312,7 @@ export interface SpaceLifecycleLog {
   log_id: number
   space_id: string
   op_type: string       // 新增 / 取消
+  change_order_no: string | null  // 变更单号
   old_status: string | null
   new_status: string | null
   reason: string | null
@@ -322,15 +323,16 @@ export interface SpaceLifecycleLog {
 // 写入一条车位台账变更记录（在事务内调用，使用传入的 client）
 export async function insertLifecycleLog(
   client: any,
-  data: { space_id: string; op_type: string; old_status?: string | null; new_status?: string | null; reason?: string | null; operator?: string | null }
+  data: { space_id: string; op_type: string; change_order_no?: string | null; old_status?: string | null; new_status?: string | null; reason?: string | null; operator?: string | null }
 ) {
   await client.query(
     `INSERT INTO parking_space_lifecycle_log
-     (space_id, op_type, old_status, new_status, reason, operator, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,NOW())`,
+     (space_id, op_type, change_order_no, old_status, new_status, reason, operator, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
     [
       data.space_id,
       data.op_type,
+      data.change_order_no ?? null,
       data.old_status ?? null,
       data.new_status ?? null,
       data.reason ?? null,

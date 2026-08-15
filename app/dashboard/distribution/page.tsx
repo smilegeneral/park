@@ -68,9 +68,9 @@ export default async function DistributionPage() {
                   marginBottom: 12,
                 }}
               >
-                {map?.image_data ? (
+                {map?.image_url ? (
                   <img
-                    src={map.image_data}
+                    src={map.image_url}
                     alt={`${zone}车位分布`}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
