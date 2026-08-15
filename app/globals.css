@@ -95,3 +95,29 @@ tr:hover td { background: #f5f9ff; }
     display: flex !important; align-items: stretch !important;
   }
 }
+
+/* ============ 右侧抽屉详情 ============ */
+.drawer-mask {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35);
+  z-index: 999; display: flex; justify-content: flex-end;
+}
+.drawer-panel {
+  width: 460px; max-width: 92vw; height: 100%;
+  background: #fff; box-shadow: -4px 0 16px rgba(0, 0, 0, 0.12);
+  display: flex; flex-direction: column; animation: drawer-in 0.2s ease;
+}
+@keyframes drawer-in {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.drawer-head {
+  flex-shrink: 0; padding: 16px 20px; border-bottom: 1px solid #eee;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.drawer-body {
+  flex: 1; overflow-y: auto; padding: 16px 20px;
+}
+.drawer-foot {
+  flex-shrink: 0; padding: 14px 20px; border-top: 1px solid #eee;
+  display: flex; gap: 8px;
+}

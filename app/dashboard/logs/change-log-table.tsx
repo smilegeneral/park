@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { SpaceChangeLog } from '@/lib/types'
@@ -29,6 +29,18 @@ export default function ChangeLogTable({
   const [detail, setDetail] = useState<SpaceChangeLog | null>(null)
   const [printLog, setPrintLog] = useState<SpaceChangeLog | null>(null)
   const [printDoc, setPrintDoc] = useState<'apply' | 'plate'>('apply')
+
+  // ESC 关闭抽屉 / 打印预览
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setDetail(null)
+        setPrintLog(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   function doSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -146,49 +158,51 @@ export default function ChangeLogTable({
         </div>
       </section>
 
-      {/* 详情面板 */}
+      {/* 右侧抽屉详情 */}
       {detail && (
-        <section className="card no-print" style={{ marginTop: 16 }}>
-          <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700 }}>变更记录详情 #{detail.log_id}</h3>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ fontSize: 13 }}
-              onClick={() => setDetail(null)}
-            >
-              ✕ 关闭
-            </button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
-            {detailRows.map(([k, v]) => (
-              <div key={k} className="flex" style={{ borderBottom: '1px dashed #eee', padding: '6px 0' }}>
-                <span style={{ width: 110, color: '#888', fontSize: 13, flexShrink: 0 }}>{k}</span>
-                <span style={{ fontSize: 14, wordBreak: 'break-all' }}>{v}</span>
+        <div className="drawer-mask" onClick={() => setDetail(null)}>
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-head">
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>变更记录详情 #{detail.log_id}</h3>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: 13 }}
+                onClick={() => setDetail(null)}
+              >
+                ✕ 关闭
+              </button>
+            </div>
+            <div className="drawer-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+                {detailRows.map(([k, v]) => (
+                  <div key={k} className="flex" style={{ borderBottom: '1px dashed #eee', padding: '6px 0' }}>
+                    <span style={{ width: 100, color: '#888', fontSize: 13, flexShrink: 0 }}>{k}</span>
+                    <span style={{ fontSize: 14, wordBreak: 'break-all' }}>{v}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <div className="drawer-foot">
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ fontSize: 14, flex: 1 }}
+                onClick={() => { setPrintLog(detail); setPrintDoc('apply') }}
+              >
+                🖨️ 补打申请单
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: 14, flex: 1 }}
+                onClick={() => { setPrintLog(detail); setPrintDoc('plate') }}
+              >
+                🖨️ 车位牌
+              </button>
+            </div>
           </div>
-
-          {/* 详情内补打按钮 */}
-          <div className="flex" style={{ gap: 8, marginTop: 16 }}>
-            <button
-              type="button"
-              className="btn-primary"
-              style={{ fontSize: 14 }}
-              onClick={() => { setPrintLog(detail); setPrintDoc('apply') }}
-            >
-              🖨️ 补打申请单
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ fontSize: 14 }}
-              onClick={() => { setPrintLog(detail); setPrintDoc('plate') }}
-            >
-              🖨️ 车位牌
-            </button>
-          </div>
-        </section>
+        </div>
       )}
 
       {/* 打印预览面板 */}
