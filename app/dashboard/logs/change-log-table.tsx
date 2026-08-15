@@ -3,6 +3,13 @@ import { useState } from 'react'
 import type { SpaceChangeLog } from '@/lib/types'
 import DocPrintPanel from '@/app/dashboard/components/doc-print'
 
+// 兼容 Date / string 的时间格式化
+function fmtTime(v: any, len = 16): string {
+  if (!v) return ''
+  const s = v instanceof Date ? v.toISOString() : String(v)
+  return s.slice(0, len)
+}
+
 export default function ChangeLogTable({ logs }: { logs: SpaceChangeLog[] }) {
   const [printLog, setPrintLog] = useState<SpaceChangeLog | null>(null)
   const [printDoc, setPrintDoc] = useState<'apply' | 'plate'>('apply')
@@ -34,7 +41,7 @@ export default function ChangeLogTable({ logs }: { logs: SpaceChangeLog[] }) {
               )}
               {logs.map(l => (
                 <tr key={l.log_id}>
-                  <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{l.changed_at?.slice(0, 16)}</td>
+                  <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
                   <td>{l.owner_name}</td>
                   <td style={{ fontWeight: 600 }}>{l.old_space_no}</td>
                   <td>¥{Number(l.old_space_price || 0).toLocaleString()}</td>

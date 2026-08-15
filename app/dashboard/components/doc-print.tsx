@@ -2,6 +2,14 @@
 import { useState } from 'react'
 import type { SpaceChangeLog } from '@/lib/types'
 
+// 兼容 Date / string 的日期格式化
+function fmtDate(v: any, len = 10): string {
+  if (!v) return ''
+  const d = v instanceof Date ? v : new Date(v)
+  if (isNaN(d.getTime())) return String(v).slice(0, len)
+  return d.toISOString().slice(0, len)
+}
+
 // ============================================================
 //  业务单据预览打印组件
 //  支持：车位销售单、车位调换单
@@ -288,7 +296,7 @@ export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
           <tr>
             <td colSpan={2} style={cellHead}>分管领导签字</td>
             <td style={cellHead}>申请日期</td>
-            <td style={{ ...cellVal, textAlign: 'center' }}>{log.changed_at?.slice(0, 10) || ''}</td>
+            <td style={{ ...cellVal, textAlign: 'center' }}>{fmtDate(log.changed_at)}</td>
           </tr>
           <tr>
             <td colSpan={2} style={sigCell}>{''}</td>
