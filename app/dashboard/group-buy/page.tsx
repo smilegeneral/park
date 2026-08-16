@@ -3,7 +3,6 @@ import {
   getSpacesByStatus,
   getGroupBuyPurchases,
   getGroupBuyStats,
-  getGroupBuyStatsDetail,
   getUnsoldSpacesForGroupBuy,
   getGroupBuyVerifyDetails,
 } from '@/lib/queries'
@@ -63,7 +62,6 @@ export default async function GroupBuyPage() {
         <StatsPanel
           byDept={statsByDept}
           byCompany={statsByCompany}
-          getDetail={async (mode, dimKey) => getGroupBuyStatsDetail(mode, dimKey)}
         />
       </section>
 

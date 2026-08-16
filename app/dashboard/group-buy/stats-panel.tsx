@@ -13,11 +13,9 @@ import type { GroupBuyStat } from '@/lib/types'
 export default function StatsPanel({
   byDept,
   byCompany,
-  getDetail,
 }: {
   byDept: GroupBuyStat[]
   byCompany: GroupBuyStat[]
-  getDetail: (mode: 'department' | 'company', dimKey?: string) => Promise<any[]>
 }) {
   const [mode, setMode] = useState<'department' | 'company'>('department')
   const dims = mode === 'company' ? byCompany : byDept
@@ -25,13 +23,19 @@ export default function StatsPanel({
   const [detail, setDetail] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
-  // 切换维度或选项时重新拉取明细
+  // 切换维度或选项时通过 API 重新拉取明细
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getDetail(mode, selected || undefined)
-      .then((rows) => {
-        if (!cancelled) setDetail(rows)
+    const params = new URLSearchParams({ mode })
+    if (selected) params.set('key', selected)
+    fetch(`/api/group-buy/stats?${params.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setDetail(data.rows || [])
+      })
+      .catch(() => {
+        if (!cancelled) setDetail([])
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
