@@ -362,7 +362,7 @@ export async function createGroupBuyPurchase(input: GroupBuyPurchaseInput) {
       }
     }
 
-    // 3. 同步/更新团购公司主档信息（按公司名 upsert 关键字段）
+    // 3. 同步/更新团购公司主档信息（按公司名 upsert）
     const comp = await client.query(
       `SELECT * FROM group_buy_company WHERE company_name = $1`,
       [input.company_name]
@@ -391,9 +391,98 @@ export async function createGroupBuyPurchase(input: GroupBuyPurchaseInput) {
           input.is_paid, input.invoice_type, cur.company_id,
         ]
       )
+    } else {
+      // 团购公司主档不存在则新建
+      await client.query(
+        `INSERT INTO group_buy_company
+         (company_name, department, contact_person, phone, space_count,
+          space_list, total_price, is_paid, invoice_type, remarks, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())`,
+        [
+          input.company_name, input.department || '', input.contact_person || '',
+          input.contact_phone || '', input.space_ids.length, input.space_ids.join(','),
+          input.amount, input.is_paid, input.invoice_type || '', input.remarks || '',
+        ]
+      )
     }
 
     return { purchase_id: purchaseId, locked_count: input.space_ids.length }
+  })
+}
+
+// ==================== 团购车位调换 ====================
+// 将某个团购锁定车位，与某个未售车位互换：
+//   - 团购锁定车位 → 恢复为"未售"（释放）
+//   - 未售车位   → 变为"团购锁定"，继承原团购公司信息
+export interface GroupSwapInput {
+  from_space_id: string   // 当前团购锁定车位（要被替换出去）
+  to_space_id: string     // 目标未售车位（换进来）
+  operator: string
+}
+
+export async function swapGroupBuySpace(input: GroupSwapInput) {
+  return withTransaction(async (client) => {
+    const fromRes = await client.query(
+      `SELECT * FROM parking_spaces WHERE space_id = $1`,
+      [input.from_space_id]
+    )
+    if (fromRes.rowCount === 0) throw new Error('原团购车位不存在')
+    const from = fromRes.rows[0]
+    if (from.status !== '团购锁定') {
+      throw new Error(`车位 ${input.from_space_id} 不是团购锁定状态，无法调换`)
+    }
+
+    const toRes = await client.query(
+      `SELECT * FROM parking_spaces WHERE space_id = $1`,
+      [input.to_space_id]
+    )
+    if (toRes.rowCount === 0) throw new Error('目标未售车位不存在')
+    const to = toRes.rows[0]
+    if (to.status !== '未售') {
+      throw new Error(`车位 ${input.to_space_id} 不是未售状态，无法换入`)
+    }
+
+    // 释放原团购车位
+    await client.query(
+      `UPDATE parking_spaces
+       SET status = '未售',
+           is_group_buy = FALSE,
+           group_company = NULL,
+           updated_at = NOW()
+       WHERE space_id = $1`,
+      [input.from_space_id]
+    )
+
+    // 新车位继承团购公司信息并锁定
+    await client.query(
+      `UPDATE parking_spaces
+       SET status = '团购锁定',
+           is_group_buy = TRUE,
+           group_company = $2,
+           updated_at = NOW()
+       WHERE space_id = $1`,
+      [input.to_space_id, from.group_company]
+    )
+
+    // 同步团购公司主档的车位列表
+    const comp = await client.query(
+      `SELECT * FROM group_buy_company WHERE company_name = $1`,
+      [from.group_company]
+    )
+    if ((comp.rowCount ?? 0) > 0) {
+      const cur = comp.rows[0]
+      const oldSpaces = (cur.space_list || '').split(',').filter(Boolean)
+      const merged = Array.from(
+        new Set(oldSpaces.filter((s: string) => s !== input.from_space_id).concat(input.to_space_id))
+      )
+      await client.query(
+        `UPDATE group_buy_company SET space_list = $1, space_count = $2, updated_at = NOW()
+         WHERE company_id = $3`,
+        [merged.join(','), merged.length, cur.company_id]
+      )
+    }
+
+    return { from: input.from_space_id, to: input.to_space_id }
   })
 }
 
@@ -404,6 +493,8 @@ export interface GroupVerifyInput {
   owner_name: string
   owner_phone: string
   house_key: string
+  sale_amount: number   // 销售金额
+  receipt_no: string    // 车位确认单号
   operator: string
 }
 
@@ -435,20 +526,21 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
            phone = $2,
            house_key = $3,
            sale_date = NOW(),
+           sale_price = $4,
            is_group_buy = TRUE,
-           group_company = $4,
+           group_company = $5,
            updated_at = NOW()
-       WHERE space_id = $5`,
-      [input.owner_name, input.owner_phone, input.house_key, companyName, input.space_id]
+       WHERE space_id = $6`,
+      [input.owner_name, input.owner_phone, input.house_key, input.sale_amount, companyName, input.space_id]
     )
 
     await client.query(
       `INSERT INTO group_buy_verify_detail
-       (company_id, space_id, house_key, owner_name, owner_phone, verify_date, operator)
-       VALUES ($1,$2,$3,$4,$5,NOW(),$6)`,
+       (company_id, company_name, space_id, house_key, owner_name, owner_phone, sale_amount, receipt_no, verify_date, operator)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9)`,
       [
-        input.company_id, input.space_id, input.house_key,
-        input.owner_name, input.owner_phone, input.operator,
+        input.company_id, companyName, input.space_id, input.house_key,
+        input.owner_name, input.owner_phone, input.sale_amount, input.receipt_no, input.operator,
       ]
     )
 

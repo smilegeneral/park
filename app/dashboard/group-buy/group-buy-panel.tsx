@@ -1,70 +1,117 @@
 'use client'
-import { useState, useTransition } from 'react'
-import { createGroupBuy } from '@/lib/actions'
+
+import { useState } from 'react'
+import { swapGroupBuySpace } from '@/lib/actions'
+import { getCompanySpaces, getUnsoldSpacesForGroupBuy } from '@/lib/queries'
 
 // ============================================================
-//  团购下单面板 - 选择车位批量锁定
+//  团购车位调换
+//  - 选择一个团购公司
+//  - 选择该公司名下某个「团购锁定」车位（换出）
+//  - 选择一个「未售」车位（换入）
+//  提交后：换出车位恢复未售，换入车位变更为团购锁定并继承团购公司
 // ============================================================
 
-export default function GroupBuyPanel({ company }: { company: any }) {
-  const [selected, setSelected] = useState<string[]>([])
+export default function GroupBuyPanel({
+  companies,
+  company, // 卡片内嵌时可预选
+}: {
+  companies: any[]
+  company?: any
+}) {
+  const [companyId, setCompanyId] = useState<string>(company ? String(company.company_id) : '')
+  const [lockedSpaces, setLockedSpaces] = useState<any[]>([])
+  const [fromSpace, setFromSpace] = useState('')
+  const [unsold, setUnsold] = useState<any[]>([])
+  const [toSpace, setToSpace] = useState('')
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [saving, setSaving] = useState(false)
 
-  // 这里简化：让用户手动输入车位编号（批量）
-  const [spaceInput, setSpaceInput] = useState('')
-
-  function toggle(sid: string) {
-    setSelected(prev =>
-      prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid]
-    )
+  async function onCompanyChange(v: string) {
+    setCompanyId(v)
+    setFromSpace('')
+    setToSpace('')
+    setLockedSpaces([])
+    setUnsold([])
+    if (!v) return
+    const c = companies.find((x) => String(x.company_id) === v)
+    if (!c) return
+    const [ls, us] = await Promise.all([
+      getCompanySpaces(c.company_name),
+      getUnsoldSpacesForGroupBuy(),
+    ])
+    setLockedSpaces(ls.filter((s: any) => s.status === '团购锁定'))
+    setUnsold(us)
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function submit() {
     setMsg(null)
-    const ids = spaceInput.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean)
-    if (ids.length === 0) return setMsg({ type: 'err', text: '请输入车位编号' })
-
-    startTransition(async () => {
-      try {
-        const res = await createGroupBuy({
-          company_id: company.company_id,
-          space_ids: ids,
-          operator: '当前用户',
-        })
-        setMsg({ type: 'ok', text: `✅ 成功锁定 ${res.locked_count} 个车位` })
-        setSpaceInput(''); setSelected([])
-        setTimeout(() => location.reload(), 1000)
-      } catch (e: any) {
-        setMsg({ type: 'err', text: `❌ ${e.message}` })
-      }
-    })
+    if (!companyId) { setMsg({ type: 'err', text: '请选择团购公司' }); return }
+    if (!fromSpace) { setMsg({ type: 'err', text: '请选择要换出的团购锁定车位' }); return }
+    if (!toSpace) { setMsg({ type: 'err', text: '请选择换入的未售车位' }); return }
+    if (fromSpace === toSpace) { setMsg({ type: 'err', text: '换出与换入车位不能相同' }); return }
+    setSaving(true)
+    try {
+      await swapGroupBuySpace({ from_space_id: fromSpace, to_space_id: toSpace, operator: 'admin' })
+      setMsg({ type: 'ok', text: `调换成功：${fromSpace} ⇄ ${toSpace}` })
+      setTimeout(() => window.location.reload(), 900)
+    } catch (e: any) {
+      setMsg({ type: 'err', text: e?.message || '调换失败' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: 10 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+    <div style={{ marginTop: 10, padding: 12, background: '#fafafa', borderRadius: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
-          <label className="text-sm">车位编号（逗号或空格分隔）</label>
-          <input
-            className="input mt-2"
-            value={spaceInput}
-            onChange={e => setSpaceInput(e.target.value)}
-            placeholder="如：A-001, A-002, A-005"
-          />
+          <label className="text-sm" style={{ display: 'block', marginBottom: 4 }}>团购公司</label>
+          <select value={companyId} onChange={(e) => onCompanyChange(e.target.value)} style={sel}>
+            <option value="">— 选择团购公司 —</option>
+            {companies.map((c) => (
+              <option key={c.company_id} value={String(c.company_id)}>{c.company_name}</option>
+            ))}
+          </select>
         </div>
-        <div className="flex" style={{ alignItems: 'flex-end' }}>
-          <button type="submit" className="btn-warning" disabled={pending} style={{ fontSize: 13 }}>
-            {pending ? '处理中...' : '🔒 批量锁定'}
+        <div>
+          <label className="text-sm" style={{ display: 'block', marginBottom: 4 }}>换出车位（团购锁定）</label>
+          <select value={fromSpace} onChange={(e) => setFromSpace(e.target.value)} style={sel} disabled={!companyId}>
+            <option value="">— 选择团购锁定车位 —</option>
+            {lockedSpaces.map((s) => (
+              <option key={s.space_id} value={s.space_id}>{s.space_id}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-sm" style={{ display: 'block', marginBottom: 4 }}>换入车位（未售）</label>
+          <select value={toSpace} onChange={(e) => setToSpace(e.target.value)} style={sel} disabled={!companyId}>
+            <option value="">— 选择未售车位 —</option>
+            {unsold.map((s) => (
+              <option key={s.space_id} value={s.space_id}>{s.space_id}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+          <button className="btn btn-primary" onClick={submit} disabled={saving || !companyId}>
+            {saving ? '调换中…' : '执行调换'}
           </button>
         </div>
       </div>
       {msg && (
-        <div className={msg.type === 'ok' ? 'text-green' : 'text-red'} style={{ marginTop: 6, fontSize: 13 }}>
+        <div style={{ marginTop: 8, color: msg.type === 'ok' ? '#52c41a' : '#ff4d4f', fontSize: 13 }}>
           {msg.text}
         </div>
       )}
-    </form>
+    </div>
   )
+}
+
+const sel: React.CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 6,
+  border: '1px solid #d9d9d9',
+  fontSize: 13,
+  background: '#fff',
+  width: '100%',
 }

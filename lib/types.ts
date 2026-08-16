@@ -93,6 +93,23 @@ export interface GroupBuyPurchase {
   updated_at: string
 }
 
+// ---------- 团购核销明细表 group_buy_verify_detail ----------
+export interface GroupBuyVerifyDetail {
+  verify_id: number
+  company_id: number | null
+  company_name: string | null
+  space_id: string | null
+  house_key: string | null
+  owner_name: string | null
+  owner_phone: string | null
+  sale_amount: number
+  receipt_no: string | null
+  verify_date: string | null
+  operator: string | null
+  remarks: string | null
+  created_at: string
+}
+
 // ---------- 团购统计结果 ----------
 export interface GroupBuyStat {
   dim_key: string         // 部门名 或 公司名

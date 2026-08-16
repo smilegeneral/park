@@ -184,15 +184,23 @@ CREATE TABLE IF NOT EXISTS owner_info_change_log (
 CREATE TABLE IF NOT EXISTS group_buy_verify_detail (
   verify_id SERIAL PRIMARY KEY,
   company_id INT,
+  company_name VARCHAR(100),
   space_id VARCHAR(20),
   house_key VARCHAR(30),
   owner_name VARCHAR(100),
   owner_phone VARCHAR(20),
+  sale_amount NUMERIC(12,2) DEFAULT 0,   -- 销售金额
+  receipt_no VARCHAR(30),                 -- 车位确认单号
   verify_date DATE,
   operator VARCHAR(50),
   remarks TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 兼容已存在表：补充新字段（销售金额、确认单号、团购公司名称）
+ALTER TABLE group_buy_verify_detail ADD COLUMN IF NOT EXISTS company_name VARCHAR(100);
+ALTER TABLE group_buy_verify_detail ADD COLUMN IF NOT EXISTS sale_amount NUMERIC(12,2) DEFAULT 0;
+ALTER TABLE group_buy_verify_detail ADD COLUMN IF NOT EXISTS receipt_no VARCHAR(30);
 
 -- ---------- 数据迁移：把 CSV 已售车位批量更新状态 ----------
 -- （CSV 导入后执行此段，将已售车位的 status 统一）

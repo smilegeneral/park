@@ -9,6 +9,7 @@ import type {
   OwnerChangeLog,
   GroupBuyPurchase,
   GroupBuyStat,
+  GroupBuyVerifyDetail,
   AdminUser,
   Permission,
   SpaceSearchParams,
@@ -171,6 +172,75 @@ export async function getGroupBuyStats(mode: 'department' | 'company'): Promise<
      ORDER BY total_amount DESC`
   )
   return rows as GroupBuyStat[]
+}
+
+// ---------- 团购统计明细：列出某部门/某团购公司购买的每个车位详情 ----------
+// 若不传 dimKey，则列出所有购买记录的车位详情
+export async function getGroupBuyStatsDetail(
+  mode: 'department' | 'company',
+  dimKey?: string
+): Promise<any[]> {
+  const dim = mode === 'company' ? 'company_name' : 'department'
+  let where = `1=1`
+  const params: any[] = []
+  if (dimKey && dimKey.trim()) {
+    where = `${dim} = $1`
+    params.push(dimKey.trim())
+  }
+  const { rows } = await pool.query(
+    `SELECT
+        p.purchase_id,
+        p.company_name,
+        p.department,
+        p.contact_person,
+        p.contact_phone,
+        p.space_count,
+        p.space_list,
+        p.amount,
+        p.invoice_type,
+        p.is_paid,
+        p.remarks,
+        p.created_at
+     FROM group_buy_purchase p
+     WHERE ${where}
+     ORDER BY p.created_at DESC`,
+    params
+  )
+  return rows
+}
+
+// ---------- 未售车位（用于团购锁定 / 调换） ----------
+export async function getUnsoldSpacesForGroupBuy(): Promise<ParkingSpace[]> {
+  const { rows } = await pool.query(
+    `SELECT * FROM parking_spaces WHERE status = '未售' ORDER BY space_id`
+  )
+  return rows as ParkingSpace[]
+}
+
+// ---------- 某团购公司名下的所有车位（团购锁定/已核销） ----------
+export async function getCompanySpaces(companyName: string): Promise<ParkingSpace[]> {
+  const { rows } = await pool.query(
+    `SELECT * FROM parking_spaces
+     WHERE group_buy_company = $1
+     ORDER BY space_id`,
+    [companyName.trim()]
+  )
+  return rows as ParkingSpace[]
+}
+
+// ---------- 团购核销明细列表 ----------
+export async function getGroupBuyVerifyDetails(companyName?: string): Promise<GroupBuyVerifyDetail[]> {
+  let where = ''
+  const params: any[] = []
+  if (companyName && companyName.trim()) {
+    where = 'WHERE company_name = $1'
+    params.push(companyName.trim())
+  }
+  const { rows } = await pool.query(
+    `SELECT * FROM group_buy_verify_detail ${where} ORDER BY created_at DESC`,
+    params
+  )
+  return rows as GroupBuyVerifyDetail[]
 }
 
 // ---------- 后台用户管理 ----------

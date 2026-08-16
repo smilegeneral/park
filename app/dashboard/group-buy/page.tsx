@@ -1,4 +1,12 @@
-import { getAllGroupCompanies, getSpacesByStatus, getGroupBuyPurchases, getGroupBuyStats } from '@/lib/queries'
+import {
+  getAllGroupCompanies,
+  getSpacesByStatus,
+  getGroupBuyPurchases,
+  getGroupBuyStats,
+  getGroupBuyStatsDetail,
+  getUnsoldSpacesForGroupBuy,
+  getGroupBuyVerifyDetails,
+} from '@/lib/queries'
 import GroupBuyPanel from './group-buy-panel'
 import VerifyPanel from './verify-panel'
 import PurchasePanel from './purchase-panel'
@@ -6,26 +14,29 @@ import StatsPanel from './stats-panel'
 import Link from 'next/link'
 
 // ============================================================
-//  团购管理 - 团购下单 + 公司购买 + 核销转业主
+//  团购管理 - 团购下单 + 公司购买 + 核销转业主 + 调换
 // ============================================================
 
-export default async function GroupBuyPage() {
-  const [companies, unsold, purchases, statsByDept, statsByCompany] = await Promise.all([
-    getAllGroupCompanies(),
-    getSpacesByStatus('未售'),
-    getGroupBuyPurchases(),
-    getGroupBuyStats('department'),
-    getGroupBuyStats('company'),
-  ])
+export const dynamic = 'force-dynamic'
 
-  const locked = await getSpacesByStatus('团购锁定')
+export default async function GroupBuyPage() {
+  const [companies, unsold, purchases, statsByDept, statsByCompany, locked, verifyDetails] =
+    await Promise.all([
+      getAllGroupCompanies(),
+      getUnsoldSpacesForGroupBuy(),
+      getGroupBuyPurchases(),
+      getGroupBuyStats('department'),
+      getGroupBuyStats('company'),
+      getSpacesByStatus('团购锁定'),
+      getGroupBuyVerifyDetails(),
+    ])
 
   return (
-    <main style={{ maxWidth: 1000, margin: '0 auto', padding: '24px' }}>
+    <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px' }}>
       <header className="flex mb-4" style={{ justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>🏢 团购管理</h1>
-          <p className="text-sm text-gray">公司批量购车位 → 逐个核销转给业主</p>
+          <p className="text-sm text-gray">团购公司批量购车位 → 车位调换 → 逐个核销转给业主</p>
         </div>
         <Link href="/dashboard" style={{ fontSize: 14 }}>← 返回</Link>
       </header>
@@ -46,24 +57,40 @@ export default async function GroupBuyPage() {
         </div>
       </section>
 
-      {/* 团购统计 */}
+      {/* 团购统计（下拉筛选 + 明细） */}
       <section className="card mb-4">
-        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购统计（按部门 / 团购公司）</h2>
-        <StatsPanel byDept={statsByDept} byCompany={statsByCompany} />
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购统计</h2>
+        <StatsPanel
+          byDept={statsByDept}
+          byCompany={statsByCompany}
+          getDetail={async (mode, dimKey) => getGroupBuyStatsDetail(mode, dimKey)}
+        />
+      </section>
+
+      {/* 团购公司购买登记 */}
+      <section className="card mb-4">
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购公司购买登记</h2>
+        <PurchasePanel companies={companies} unsold={unsold} />
       </section>
 
       {/* 团购公司列表 + 下单 */}
       <section className="card mb-4">
-        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购下单 / 公司购买</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购公司 / 车位下单</h2>
         {companies.length === 0 ? (
-          <p className="text-gray text-sm">暂无团购公司，请先在数据库中录入。</p>
+          <p className="text-gray text-sm">暂无团购公司，请先通过上方"团购公司购买登记"新建。</p>
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
-            {companies.map(c => (
-              <CompanyCard key={c.company_id} company={c} unsoldCount={unsold.length} />
+            {companies.map((c) => (
+              <CompanyCard key={c.company_id} company={c} unsoldCount={unsold.length} companies={companies} unsold={unsold} />
             ))}
           </div>
         )}
+      </section>
+
+      {/* 团购车位调换 */}
+      <section className="card mb-4">
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购车位调换</h2>
+        <GroupBuyPanel companies={companies} />
       </section>
 
       {/* 团购核销 */}
@@ -77,7 +104,7 @@ export default async function GroupBuyPage() {
       </section>
 
       {/* 团购公司购买记录 */}
-      <section className="card">
+      <section className="card mb-4">
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购公司购买记录</h2>
         {purchases.length === 0 ? (
           <p className="text-gray text-sm">暂无购买记录。</p>
@@ -91,7 +118,7 @@ export default async function GroupBuyPage() {
                 </tr>
               </thead>
               <tbody>
-                {purchases.map(p => (
+                {purchases.map((p) => (
                   <tr key={p.purchase_id}>
                     <td>{p.company_name}</td>
                     <td>{p.department || '-'}</td>
@@ -104,7 +131,40 @@ export default async function GroupBuyPage() {
                     <td>¥{Number(p.amount).toLocaleString()}</td>
                     <td>{p.is_paid ? '✅已付' : '⏳未付'}</td>
                     <td>{p.invoice_type}</td>
-                    <td>{new Date(p.created_at).toLocaleString('zh-CN')}</td>
+                    <td>{fmtTime(p.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* 团购核销明细 */}
+      <section className="card">
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购核销明细</h2>
+        {verifyDetails.length === 0 ? (
+          <p className="text-gray text-sm">暂无核销明细记录。</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th>团购公司</th><th>车位号</th><th>业主</th><th>房号</th><th>销售金额</th>
+                  <th>确认单号</th><th>核销日期</th><th>经办人</th>
+                </tr>
+              </thead>
+              <tbody>
+                {verifyDetails.map((v) => (
+                  <tr key={v.verify_id}>
+                    <td>{v.company_name || '-'}</td>
+                    <td>{v.space_id || '-'}</td>
+                    <td>{v.owner_name || '-'}</td>
+                    <td>{v.house_key || '-'}</td>
+                    <td>¥{Number(v.sale_amount).toLocaleString()}</td>
+                    <td>{v.receipt_no || '-'}</td>
+                    <td>{v.verify_date ? String(v.verify_date).slice(0, 10) : fmtTime(v.created_at).slice(0, 10)}</td>
+                    <td>{v.operator || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -116,12 +176,27 @@ export default async function GroupBuyPage() {
   )
 }
 
+function fmtTime(v: any): string {
+  if (!v) return '-'
+  if (v instanceof Date) return v.toLocaleString('zh-CN')
+  if (typeof v === 'string') {
+    const d = new Date(v)
+    if (!isNaN(d.getTime())) return d.toLocaleString('zh-CN')
+    return v
+  }
+  return String(v)
+}
+
 function CompanyCard({
   company,
   unsoldCount,
+  companies,
+  unsold,
 }: {
   company: any
   unsoldCount: number
+  companies: any[]
+  unsold: any[]
 }) {
   return (
     <div style={{ padding: 12, border: '1px solid #f0f0f0', borderRadius: 6 }}>
@@ -135,8 +210,8 @@ function CompanyCard({
         </div>
         <div className="text-sm text-gray">¥{Number(company.total_price).toLocaleString()}</div>
       </div>
-      <GroupBuyPanel company={company} />
-      <PurchasePanel company={company} />
+      <GroupBuyPanel companies={companies} company={company} />
+      <PurchasePanel companies={companies} unsold={unsold} company={company} />
     </div>
   )
 }

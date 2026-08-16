@@ -1,130 +1,283 @@
 'use client'
-import { useState, useTransition } from 'react'
+
+import { useState } from 'react'
 import { createGroupBuyPurchase } from '@/lib/actions'
+import type { ParkingSpace } from '@/lib/types'
 
 // ============================================================
-//  团购公司购买登记面板
-//  录入：公司名称 / 所属部门 / 联系人 / 联系电话 /
-//       购买车位数量 / 车位号 / 金额 / 是否付款 / 发票类型
-//  提交后联动锁定车位 + 写入 group_buy_purchase 记录
+//  团购公司购买登记
+//  - 一个按钮进入登记界面
+//  - 选择已有团购公司 / 新建团购公司（输入名称）
+//  - 部门（下拉，可选填）、联系人、电话
+//  - 车位数量、车位号列表（多选）、金额、发票类型、是否付款、备注
+//  提交后：写入购买记录 + 车位台账 从未售 → 团购锁定
 // ============================================================
 
-const INVOICE_TYPES = ['未开票', '专票', '普票', '普票个人']
+const INVOICE_TYPES = ['专票', '普票', '普票个人', '未开票']
 
-export default function PurchasePanel({ company }: { company: any }) {
+export default function PurchasePanel({
+  companies,
+  unsold,
+  company, // 若由某团购公司卡片内嵌调用，预选该公司
+}: {
+  companies: any[]
+  unsold: ParkingSpace[]
+  company?: any
+}) {
   const [open, setOpen] = useState(false)
-  const [companyName, setCompanyName] = useState(company?.company_name || '')
+  const [companyId, setCompanyId] = useState<string>(company ? String(company.company_id) : '')
+  const [newCompanyName, setNewCompanyName] = useState('')
   const [department, setDepartment] = useState(company?.department || '')
-  const [contactPerson, setContactPerson] = useState(company?.contact_person || '')
-  const [contactPhone, setContactPhone] = useState(company?.phone || '')
-  const [spaceInput, setSpaceInput] = useState('')
+  const [contact, setContact] = useState(company?.contact_person || '')
+  const [phone, setPhone] = useState(company?.phone || '')
+  const [selectedSpaces, setSelectedSpaces] = useState<string[]>([])
   const [amount, setAmount] = useState('')
+  const [invoiceType, setInvoiceType] = useState('专票')
   const [isPaid, setIsPaid] = useState(false)
-  const [invoiceType, setInvoiceType] = useState(company?.invoice_type || '未开票')
   const [remarks, setRemarks] = useState('')
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [saving, setSaving] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  // 部门选项：从已登记记录中聚合（去重）
+  const deptOptions = Array.from(
+    new Set(
+      companies
+        .map((c) => c.department)
+        .filter((d) => d && d.trim())
+    )
+  ) as string[]
+
+  function reset() {
+    setCompanyId(company ? String(company.company_id) : '')
+    setNewCompanyName('')
+    setSelectedSpaces([])
+    setAmount('')
+    setIsPaid(false)
+    setRemarks('')
     setMsg(null)
-    const ids = spaceInput.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean)
-    if (!companyName) return setMsg({ type: 'err', text: '请输入团购公司名称' })
-    if (ids.length === 0) return setMsg({ type: 'err', text: '请输入购买的车位编号' })
-    const amt = parseFloat(amount)
-    if (!amt || amt <= 0) return setMsg({ type: 'err', text: '请输入有效金额' })
+  }
 
-    startTransition(async () => {
-      try {
-        const res = await createGroupBuyPurchase({
-          company_name: companyName,
-          department,
-          contact_person: contactPerson,
-          contact_phone: contactPhone,
-          space_ids: ids,
-          amount: amt,
-          is_paid: isPaid,
-          invoice_type: invoiceType,
-          remarks,
-          operator: '当前用户',
-        })
-        setMsg({ type: 'ok', text: `✅ 登记成功，锁定 ${res.locked_count} 个车位（购买单 #${res.purchase_id}）` })
-        setSpaceInput(''); setAmount(''); setRemarks('')
-        setTimeout(() => location.reload(), 1200)
-      } catch (e: any) {
-        setMsg({ type: 'err', text: `❌ ${e.message}` })
-      }
-    })
+  function toggleSpace(sid: string) {
+    setSelectedSpaces((prev) =>
+      prev.includes(sid) ? prev.filter((s) => s !== sid) : [...prev, sid]
+    )
+  }
+
+  async function submit() {
+    setMsg(null)
+    const isNew = companyId === '__new__'
+    const finalCompanyName = isNew ? newCompanyName.trim() : companies.find((c) => String(c.company_id) === companyId)?.company_name
+    if (!finalCompanyName) {
+      setMsg({ type: 'err', text: '请选择团购公司或输入新公司名称' })
+      return
+    }
+    if (selectedSpaces.length === 0) {
+      setMsg({ type: 'err', text: '请至少选择一个车位' })
+      return
+    }
+    if (!amount || Number(amount) <= 0) {
+      setMsg({ type: 'err', text: '请输入有效金额' })
+      return
+    }
+    setSaving(true)
+    try {
+      await createGroupBuyPurchase({
+        company_name: finalCompanyName,
+        department: department.trim(),
+        contact_person: contact.trim(),
+        contact_phone: phone.trim(),
+        space_ids: selectedSpaces,
+        amount: Number(amount),
+        is_paid: isPaid,
+        invoice_type: invoiceType,
+        remarks: remarks.trim(),
+        operator: 'admin',
+      })
+      setMsg({ type: 'ok', text: `登记成功，已锁定 ${selectedSpaces.length} 个车位` })
+      setTimeout(() => {
+        setOpen(false)
+        reset()
+        window.location.reload()
+      }, 900)
+    } catch (e: any) {
+      setMsg({ type: 'err', text: e?.message || '登记失败' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <div style={{ marginTop: 10 }}>
-      {!open ? (
-        <button type="button" className="btn-primary" style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
-          ➕ 公司购买登记
-        </button>
-      ) : (
-        <form onSubmit={handleSubmit} style={{ border: '1px solid #e6f0ff', borderRadius: 6, padding: 12, background: '#fafcff' }}>
-          <div className="text-sm" style={{ fontWeight: 600, marginBottom: 8 }}>团购公司购买登记</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <Field label="团购公司名称 *">
-              <input className="input" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="如：XX公司" />
-            </Field>
-            <Field label="所属部门">
-              <input className="input" value={department} onChange={e => setDepartment(e.target.value)} placeholder="如：行政部" />
-            </Field>
-            <Field label="联系人">
-              <input className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} />
-            </Field>
-            <Field label="联系电话">
-              <input className="input" value={contactPhone} onChange={e => setContactPhone(e.target.value)} />
-            </Field>
-            <Field label={`购买车位数量（已填 ${spaceInput.split(/[,，\s]+/).filter(Boolean).length} 个）`}>
-              <input className="input" value={spaceInput} onChange={e => setSpaceInput(e.target.value)}
-                placeholder="车位号，逗号/空格分隔：A-001, A-002" />
-            </Field>
-            <Field label="金额（元）*">
-              <input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
-            </Field>
-            <Field label="发票类型">
-              <select className="select" value={invoiceType} onChange={e => setInvoiceType(e.target.value)}>
-                {INVOICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-            <Field label="是否付款">
-              <label className="flex" style={{ alignItems: 'center', gap: 6, fontSize: 13, paddingTop: 6 }}>
-                <input type="checkbox" checked={isPaid} onChange={e => setIsPaid(e.target.checked)} />
-                {isPaid ? '已付款' : '未付款'}
-              </label>
-            </Field>
-            <Field label="备注">
-              <input className="input" value={remarks} onChange={e => setRemarks(e.target.value)} />
-            </Field>
-          </div>
-          {msg && (
-            <div className={msg.type === 'ok' ? 'text-green' : 'text-red'} style={{ marginTop: 8, fontSize: 13, fontWeight: 500 }}>
-              {msg.text}
+    <>
+      <button className="btn btn-primary" onClick={() => setOpen(true)}>
+        + 公司购买登记
+      </button>
+
+      {open && (
+        <div className="drawer-mask" onClick={() => setOpen(false)}>
+          <div className="drawer-panel" style={{ maxWidth: 760, width: '96%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-head">
+              <span style={{ fontSize: 16, fontWeight: 700 }}>团购公司购买登记</span>
+              <button className="btn btn-ghost" onClick={() => setOpen(false)}>✕</button>
             </div>
-          )}
-          <div className="flex mt-3" style={{ gap: 8 }}>
-            <button type="submit" className="btn-success" disabled={pending} style={{ fontSize: 13 }}>
-              {pending ? '处理中...' : '💾 提交购买登记'}
-            </button>
-            <button type="button" className="btn-ghost" style={{ fontSize: 13 }} onClick={() => setOpen(false)}>
-              取消
-            </button>
+            <div className="drawer-body" style={{ maxHeight: '74vh', overflowY: 'auto' }}>
+              <div style={formGrid}>
+                <label className="text-sm" style={lbl}>团购公司</label>
+                <select
+                  value={companyId}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setCompanyId(v)
+                    if (v !== '__new__') {
+                      const c = companies.find((x) => String(x.company_id) === v)
+                      if (c) {
+                        setDepartment(c.department || '')
+                        setContact(c.contact_person || '')
+                        setPhone(c.phone || '')
+                      }
+                    } else {
+                      setDepartment(''); setContact(''); setPhone('')
+                    }
+                  }}
+                  style={sel}
+                >
+                  <option value="">— 选择已有团购公司 —</option>
+                  {companies.map((c) => (
+                    <option key={c.company_id} value={String(c.company_id)}>{c.company_name}</option>
+                  ))}
+                  <option value="__new__">＋ 新建团购公司…</option>
+                </select>
+
+                {companyId === '__new__' && (
+                  <>
+                    <label className="text-sm" style={lbl}>新公司名称</label>
+                    <input
+                      value={newCompanyName}
+                      onChange={(e) => setNewCompanyName(e.target.value)}
+                      placeholder="请输入团购公司全称"
+                      style={inp}
+                    />
+                  </>
+                )}
+
+                <label className="text-sm" style={lbl}>部门</label>
+                <select value={department} onChange={(e) => setDepartment(e.target.value)} style={sel}>
+                  <option value="">— 选择 / 留空 —</option>
+                  {deptOptions.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+
+                <label className="text-sm" style={lbl}>联系人</label>
+                <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="联系人姓名" style={inp} />
+
+                <label className="text-sm" style={lbl}>联系电话</label>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="联系电话" style={inp} />
+
+                <label className="text-sm" style={lbl}>车位数量（自动统计）</label>
+                <input value={selectedSpaces.length} readOnly style={{ ...inp, background: '#f5f5f5' }} />
+
+                <label className="text-sm" style={lbl}>金额（元）</label>
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                  placeholder="总金额"
+                  style={inp}
+                  inputMode="decimal"
+                />
+
+                <label className="text-sm" style={lbl}>发票类型</label>
+                <select value={invoiceType} onChange={(e) => setInvoiceType(e.target.value)} style={sel}>
+                  {INVOICE_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+
+                <label className="text-sm" style={lbl}>是否付款</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="checkbox" checked={isPaid} onChange={(e) => setIsPaid(e.target.checked)} />
+                  <span className="text-sm">已付款</span>
+                </label>
+
+                <label className="text-sm" style={{ gridColumn: '1 / -1' }}>备注</label>
+                <textarea
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="备注信息（可选）"
+                  rows={2}
+                  style={{ ...inp, gridColumn: '1 / -1' }}
+                />
+              </div>
+
+              <div className="text-sm text-gray" style={{ marginTop: 12 }}>
+                选择车位号（可多选，当前共 {selectedSpaces.length} 个）：
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
+                {unsold.length === 0 && <span className="text-gray text-sm">暂无可购未售车位</span>}
+                {unsold.map((s) => {
+                  const on = selectedSpaces.includes(s.space_id)
+                  return (
+                    <button
+                      key={s.space_id}
+                      onClick={() => toggleSpace(s.space_id)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 4,
+                        border: `1px solid ${on ? '#1677ff' : '#d9d9d9'}`,
+                        background: on ? '#1677ff' : '#fff',
+                        color: on ? '#fff' : '#333',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {s.space_id}
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedSpaces.length > 0 && (
+                <div className="text-xs text-gray" style={{ marginTop: 6 }}>
+                  已选：{selectedSpaces.join('、')}
+                </div>
+              )}
+            </div>
+
+            <div className="drawer-foot">
+              {msg && (
+                <span style={{ color: msg.type === 'ok' ? '#52c41a' : '#ff4d4f', fontSize: 13 }}>
+                  {msg.text}
+                </span>
+              )}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                <button className="btn btn-ghost" onClick={() => setOpen(false)} disabled={saving}>取消</button>
+                <button className="btn btn-primary" onClick={submit} disabled={saving}>
+                  {saving ? '提交中…' : '提交登记'}
+                </button>
+              </div>
+            </div>
           </div>
-        </form>
+        </div>
       )}
-    </div>
+    </>
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label style={{ fontSize: 12, color: '#555', display: 'block' }}>
-      {label}
-      <div style={{ marginTop: 2 }}>{children}</div>
-    </label>
-  )
+const formGrid: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '120px 1fr',
+  gap: '10px 12px',
+  alignItems: 'center',
+}
+const lbl: React.CSSProperties = { color: '#555' }
+const inp: React.CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 6,
+  border: '1px solid #d9d9d9',
+  fontSize: 13,
+}
+const sel: React.CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 6,
+  border: '1px solid #d9d9d9',
+  fontSize: 13,
+  background: '#fff',
 }
