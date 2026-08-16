@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { verifyGroupBuy } from '@/lib/actions'
-import { getCompanySpaces } from '@/lib/queries'
 
 // ============================================================
 //  团购核销（公司 → 业主）
@@ -37,7 +36,9 @@ export default function VerifyPanel({
     if (!v) return
     const c = companies.find((x) => String(x.company_id) === v)
     if (!c) return
-    const spaces = await getCompanySpaces(c.company_name)
+    const res = await fetch(`/api/group-buy/spaces?company=${encodeURIComponent(c.company_name)}`)
+    const data = await res.json()
+    const spaces = (data.spaces || []) as any[]
     setCompanySpaces(spaces.filter((s: any) => s.status === '团购锁定'))
   }
 

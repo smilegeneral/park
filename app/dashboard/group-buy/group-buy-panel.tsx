@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { swapGroupBuySpace } from '@/lib/actions'
-import { getCompanySpaces, getUnsoldSpacesForGroupBuy } from '@/lib/queries'
 
 // ============================================================
 //  团购车位调换
@@ -36,10 +35,14 @@ export default function GroupBuyPanel({
     if (!v) return
     const c = companies.find((x) => String(x.company_id) === v)
     if (!c) return
-    const [ls, us] = await Promise.all([
-      getCompanySpaces(c.company_name),
-      getUnsoldSpacesForGroupBuy(),
+    const [lr, ur] = await Promise.all([
+      fetch(`/api/group-buy/spaces?company=${encodeURIComponent(c.company_name)}`),
+      fetch(`/api/group-buy/spaces`),
     ])
+    const ld = await lr.json()
+    const ud = await ur.json()
+    const ls = (ld.spaces || []) as any[]
+    const us = (ud.spaces || []) as any[]
     setLockedSpaces(ls.filter((s: any) => s.status === '团购锁定'))
     setUnsold(us)
   }
