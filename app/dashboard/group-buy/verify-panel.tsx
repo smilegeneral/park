@@ -26,6 +26,7 @@ export default function VerifyPanel({
   const [houseKey, setHouseKey] = useState('')
   const [saleAmount, setSaleAmount] = useState('')
   const [receiptNo, setReceiptNo] = useState('')
+  const [remarks, setRemarks] = useState('')
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -64,6 +65,7 @@ export default function VerifyPanel({
         house_key: houseKey.trim(),
         sale_amount: Number(saleAmount),
         receipt_no: receiptNo.trim(),
+        remarks: remarks.trim(),
         operator: 'admin',
       })
       setMsg({ type: 'ok', text: `核销成功：${spaceId} → ${ownerName}` })
@@ -124,6 +126,10 @@ export default function VerifyPanel({
         <div>
           <label className="text-sm" style={{ display: 'block', marginBottom: 4 }}>车位确认单号</label>
           <input value={receiptNo} onChange={(e) => setReceiptNo(e.target.value)} style={inp} placeholder="车位确认单号" />
+        </div>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label className="text-sm" style={{ display: 'block', marginBottom: 4 }}>备注</label>
+          <input value={remarks} onChange={(e) => setRemarks(e.target.value)} style={inp} placeholder="核销备注（选填）" />
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end' }}>
           <button className="btn btn-primary" onClick={submit} disabled={saving || !companyId}>

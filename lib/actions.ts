@@ -349,6 +349,7 @@ export async function createGroupBuyPurchase(input: GroupBuyPurchaseInput) {
     const purchaseId = purRes.rows[0].purchase_id
 
     // 2. 联动锁定车位（乐观锁，只有未售状态才能锁）
+    //    同时写入车位总账变更日志（parking_space_lifecycle_log）
     for (const sid of input.space_ids) {
       const r = await client.query(
         `UPDATE parking_spaces
@@ -360,6 +361,15 @@ export async function createGroupBuyPurchase(input: GroupBuyPurchaseInput) {
       if (r.rowCount === 0) {
         throw new Error(`车位 ${sid} 锁定失败（可能已被占用或非未售状态）`)
       }
+      await insertLifecycleLog(client, {
+        space_id: sid,
+        op_type: '团购锁定',
+        change_order_no: `GBP-${Date.now()}-${sid}`,
+        old_status: '未售',
+        new_status: '团购锁定',
+        reason: `团购公司「${input.company_name}」购买登记${input.remarks ? '：' + input.remarks : ''}`,
+        operator: input.operator,
+      })
     }
 
     // 3. 同步/更新团购公司主档信息（按公司名 upsert）
@@ -482,7 +492,43 @@ export async function swapGroupBuySpace(input: GroupSwapInput) {
       )
     }
 
-    return { from: input.from_space_id, to: input.to_space_id }
+    // 写入车位调换记录表（parking_space_change_log）
+    const swapOrderNo = `GBSW-${Date.now()}`
+    await client.query(
+      `INSERT INTO parking_space_change_log
+       (owner_name, phone, old_space_no, old_space_type, old_house_key, old_space_price,
+        new_space_no, new_space_type, new_house_key, new_space_price,
+        price_difference, swap_type, change_reason, operator, changed_at, swap_order_no, process_result)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,'团购调换','团购车位调换（团购锁定车位互换）',
+               $11,NOW(),$12,'已完成')`,
+      [
+        from.group_company || '', '', input.from_space_id, from.space_type, from.house_key || '', from.price || 0,
+        input.to_space_id, to.space_type, to.house_key || '', to.price || 0,
+        input.operator, swapOrderNo,
+      ]
+    )
+
+    // 记录总账变更日志（两个车位的状态变化）
+    await insertLifecycleLog(client, {
+      space_id: input.from_space_id,
+      op_type: '团购调换',
+      change_order_no: swapOrderNo,
+      old_status: '团购锁定',
+      new_status: '未售',
+      reason: `团购车位调换：释放原团购锁定车位，换入 ${input.to_space_id}`,
+      operator: input.operator,
+    })
+    await insertLifecycleLog(client, {
+      space_id: input.to_space_id,
+      op_type: '团购调换',
+      change_order_no: swapOrderNo,
+      old_status: '未售',
+      new_status: '团购锁定',
+      reason: `团购车位调换：换入为团购锁定车位（原 ${input.from_space_id}）`,
+      operator: input.operator,
+    })
+
+    return { from: input.from_space_id, to: input.to_space_id, swap_order_no: swapOrderNo }
   })
 }
 
@@ -495,6 +541,7 @@ export interface GroupVerifyInput {
   house_key: string
   sale_amount: number   // 销售金额
   receipt_no: string    // 车位确认单号
+  remarks: string
   operator: string
 }
 
@@ -536,11 +583,11 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
 
     await client.query(
       `INSERT INTO group_buy_verify_detail
-       (company_id, company_name, space_id, house_key, owner_name, owner_phone, sale_amount, receipt_no, verify_date, operator)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9)`,
+       (company_id, company_name, space_id, house_key, owner_name, owner_phone, sale_amount, receipt_no, verify_date, operator, remarks)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,$10)`,
       [
         input.company_id, companyName, input.space_id, input.house_key,
-        input.owner_name, input.owner_phone, input.sale_amount, input.receipt_no, input.operator,
+        input.owner_name, input.owner_phone, input.sale_amount, input.receipt_no, input.operator, input.remarks || '',
       ]
     )
 
@@ -551,6 +598,29 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
       space_id: input.space_id,
       price: space.price || 0,
     })
+
+    // 写入车位总账变更日志 + 销售记录表（parking_sales_records）
+    const verifyOrderNo = `GBV-${Date.now()}-${input.space_id}`
+    await insertLifecycleLog(client, {
+      space_id: input.space_id,
+      op_type: '团购核销',
+      change_order_no: verifyOrderNo,
+      old_status: '团购锁定',
+      new_status: '已售',
+      reason: `团购核销：${companyName} → 业主 ${input.owner_name}${input.receipt_no ? '，确认单号 ' + input.receipt_no : ''}${input.remarks ? '，备注 ' + input.remarks : ''}`,
+      operator: input.operator,
+    })
+    await client.query(
+      `INSERT INTO parking_sales_records
+        (sale_order_no, space_no, space_type, house_key, owner_name, phone, amount,
+         sale_time, receipt_no, is_group_buy, group_company, status, operator, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),$8,TRUE,$9,'已完成',$10,NOW(),NOW())`,
+      [
+        verifyOrderNo, input.space_id, space.space_type, input.house_key,
+        input.owner_name, input.owner_phone, input.sale_amount,
+        input.receipt_no || null, companyName, input.operator,
+      ]
+    )
 
     return { space_id: input.space_id, status: '已售' }
   })
