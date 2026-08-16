@@ -45,6 +45,19 @@ export default function StatsPanel({
     }
   }, [mode, selected])
 
+  // 按部门时计算合计行
+  const total = dims.reduce(
+    (acc, d) => ({
+      spaces: acc.spaces + Number(d.total_spaces || 0),
+      amount: acc.amount + Number(d.total_amount || 0),
+      paidSpaces: acc.paidSpaces + Number(d.paid_spaces || 0),
+      paidAmount: acc.paidAmount + Number(d.paid_amount || 0),
+      unpaidSpaces: acc.unpaidSpaces + Number(d.unpaid_spaces || 0),
+      unpaidAmount: acc.unpaidAmount + Number(d.unpaid_amount || 0),
+    }),
+    { spaces: 0, amount: 0, paidSpaces: 0, paidAmount: 0, unpaidSpaces: 0, unpaidAmount: 0 }
+  )
+
   return (
     <div>
       <div className="flex mb-3" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -108,6 +121,17 @@ export default function StatsPanel({
             ))}
             {dims.length === 0 && (
               <tr><td colSpan={7} className="text-gray text-sm">暂无统计信息</td></tr>
+            )}
+            {mode === 'department' && dims.length > 0 && (
+              <tr style={{ fontWeight: 700, background: '#f5f5f5' }}>
+                <td>合计</td>
+                <td>{total.spaces}</td>
+                <td>¥{Number(total.amount).toLocaleString()}</td>
+                <td>{total.paidSpaces}</td>
+                <td>¥{Number(total.paidAmount).toLocaleString()}</td>
+                <td>{total.unpaidSpaces}</td>
+                <td>¥{Number(total.unpaidAmount).toLocaleString()}</td>
+              </tr>
             )}
           </tbody>
         </table>
