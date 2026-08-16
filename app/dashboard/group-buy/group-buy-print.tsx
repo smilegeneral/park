@@ -84,7 +84,7 @@ export function PurchaseSlip({ p }: { p: GroupBuyPurchase }) {
           </tr>
           <tr>
             <td colSpan={2} style={cellHead}>车位销售签字</td>
-            <td colSpan={2} style={cellHead}>团购公司签字</td>
+            <td colSpan={2} style={cellHead}>团购公司代表签字</td>
           </tr>
           <tr>
             <td colSpan={2} style={sigCell}></td>
@@ -149,7 +149,7 @@ export function VerifySlip({ v }: { v: GroupBuyVerifyDetail }) {
           </tr>
           <tr>
             <td colSpan={2} style={cellHead}>车位销售签字</td>
-            <td colSpan={2} style={cellHead}>团购公司签字</td>
+            <td colSpan={2} style={cellHead}>业主签字</td>
           </tr>
           <tr>
             <td colSpan={2} style={sigCell}></td>
