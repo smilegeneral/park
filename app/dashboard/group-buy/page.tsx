@@ -185,5 +185,5 @@ function fmtDate(v: any): string {
     const s = String(v)
     return s.slice(0, 10)
   }
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
