@@ -71,20 +71,6 @@ export default async function GroupBuyPage() {
         <PurchasePanel companies={companies} unsold={unsold} />
       </section>
 
-      {/* 团购公司列表 + 下单 */}
-      <section className="card mb-4">
-        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购公司 / 车位下单</h2>
-        {companies.length === 0 ? (
-          <p className="text-gray text-sm">暂无团购公司，请先通过上方"团购公司购买登记"新建。</p>
-        ) : (
-          <div style={{ display: 'grid', gap: 10 }}>
-            {companies.map((c) => (
-              <CompanyCard key={c.company_id} company={c} unsoldCount={unsold.length} companies={companies} unsold={unsold} />
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* 团购车位调换 */}
       <section className="card mb-4">
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>团购车位调换</h2>
@@ -183,33 +169,4 @@ function fmtTime(v: any): string {
     return v
   }
   return String(v)
-}
-
-function CompanyCard({
-  company,
-  unsoldCount,
-  companies,
-  unsold,
-}: {
-  company: any
-  unsoldCount: number
-  companies: any[]
-  unsold: any[]
-}) {
-  return (
-    <div style={{ padding: 12, border: '1px solid #f0f0f0', borderRadius: 6 }}>
-      <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontWeight: 600 }}>{company.company_name}</div>
-          <div className="text-xs text-gray">
-            {company.department} · {company.space_count} 个车位
-            {company.is_paid ? ' · ✅已付款' : ' · ⏳未付款'}
-          </div>
-        </div>
-        <div className="text-sm text-gray">¥{Number(company.total_price).toLocaleString()}</div>
-      </div>
-      <GroupBuyPanel companies={companies} company={company} />
-      <PurchasePanel companies={companies} unsold={unsold} company={company} />
-    </div>
-  )
 }
