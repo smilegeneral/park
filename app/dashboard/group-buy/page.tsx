@@ -151,7 +151,7 @@ export default async function GroupBuyPage() {
                     <td>{v.house_key || '-'}</td>
                     <td>¥{Number(v.sale_amount).toLocaleString()}</td>
                     <td>{v.receipt_no || '-'}</td>
-                    <td>{v.verify_date ? String(v.verify_date).slice(0, 10) : fmtTime(v.created_at).slice(0, 10)}</td>
+                    <td>{v.verify_date ? fmtDate(v.verify_date) : fmtTime(v.created_at).slice(0, 10)}</td>
                     <td>{v.operator || '-'}</td>
                     <td>
                       <VerifySlipButton v={v} />
@@ -176,4 +176,14 @@ function fmtTime(v: any): string {
     return v
   }
   return String(v)
+}
+
+function fmtDate(v: any): string {
+  if (!v) return '-'
+  const d = v instanceof Date ? v : new Date(v)
+  if (isNaN(d.getTime())) {
+    const s = String(v)
+    return s.slice(0, 10)
+  }
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
 }
