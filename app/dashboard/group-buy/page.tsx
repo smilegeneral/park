@@ -10,6 +10,7 @@ import GroupBuyPanel from './group-buy-panel'
 import VerifyPanel from './verify-panel'
 import PurchasePanel from './purchase-panel'
 import StatsPanel from './stats-panel'
+import { PurchaseSlipButton, VerifySlipButton } from './group-buy-print'
 import Link from 'next/link'
 
 // ============================================================
@@ -98,7 +99,7 @@ export default async function GroupBuyPage() {
               <thead>
                 <tr>
                   <th>公司名称</th><th>部门</th><th>联系人</th><th>电话</th>
-                  <th>数量</th><th>车位号</th><th>金额</th><th>付款</th><th>发票</th><th>登记时间</th>
+                  <th>数量</th><th>车位号</th><th>金额</th><th>付款</th><th>发票</th><th>登记时间</th><th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,6 +117,9 @@ export default async function GroupBuyPage() {
                     <td>{p.is_paid ? '✅已付' : '⏳未付'}</td>
                     <td>{p.invoice_type}</td>
                     <td>{fmtTime(p.created_at)}</td>
+                    <td>
+                      <PurchaseSlipButton p={p} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -135,7 +139,7 @@ export default async function GroupBuyPage() {
               <thead>
                 <tr>
                   <th>团购公司</th><th>车位号</th><th>业主</th><th>房号</th><th>销售金额</th>
-                  <th>确认单号</th><th>核销日期</th><th>经办人</th>
+                  <th>确认单号</th><th>核销日期</th><th>经办人</th><th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -149,6 +153,9 @@ export default async function GroupBuyPage() {
                     <td>{v.receipt_no || '-'}</td>
                     <td>{v.verify_date ? String(v.verify_date).slice(0, 10) : fmtTime(v.created_at).slice(0, 10)}</td>
                     <td>{v.operator || '-'}</td>
+                    <td>
+                      <VerifySlipButton v={v} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
