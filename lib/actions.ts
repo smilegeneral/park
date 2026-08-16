@@ -599,7 +599,9 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
       price: space.price || 0,
     })
 
-    // 写入车位总账变更日志 + 销售记录表（parking_sales_records）
+    // 写入车位总账变更日志（parking_space_lifecycle_log）
+    // 注意：核销只更新车位台账(parking_spaces)与团购核销记录表(group_buy_verify_detail)，
+    // 不写入通用车位销售记录表(parking_sales_records)
     const verifyOrderNo = `GBV-${Date.now()}-${input.space_id}`
     await insertLifecycleLog(client, {
       space_id: input.space_id,
@@ -610,17 +612,6 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
       reason: `团购核销：${companyName} → 业主 ${input.owner_name}${input.receipt_no ? '，确认单号 ' + input.receipt_no : ''}${input.remarks ? '，备注 ' + input.remarks : ''}`,
       operator: input.operator,
     })
-    await client.query(
-      `INSERT INTO parking_sales_records
-        (sale_order_no, space_no, space_type, house_key, owner_name, phone, amount,
-         sale_time, receipt_no, is_group_buy, group_company, status, operator, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),$8,TRUE,$9,'已完成',$10,NOW(),NOW())`,
-      [
-        verifyOrderNo, input.space_id, space.space_type, input.house_key,
-        input.owner_name, input.owner_phone, input.sale_amount,
-        input.receipt_no || null, companyName, input.operator,
-      ]
-    )
 
     return { space_id: input.space_id, status: '已售' }
   })
