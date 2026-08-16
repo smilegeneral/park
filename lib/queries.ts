@@ -221,7 +221,7 @@ export async function getUnsoldSpacesForGroupBuy(): Promise<ParkingSpace[]> {
 export async function getCompanySpaces(companyName: string): Promise<ParkingSpace[]> {
   const { rows } = await pool.query(
     `SELECT * FROM parking_spaces
-     WHERE group_buy_company = $1
+     WHERE group_company = $1
      ORDER BY space_id`,
     [companyName.trim()]
   )

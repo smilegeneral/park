@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     let rows: ParkingSpace[]
     if (company) {
       const r = await pool.query(
-        `SELECT * FROM parking_spaces WHERE group_buy_company = $1 ORDER BY space_id`,
+        `SELECT * FROM parking_spaces WHERE group_company = $1 ORDER BY space_id`,
         [company]
       )
       rows = r.rows as ParkingSpace[]
