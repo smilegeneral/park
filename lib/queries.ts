@@ -249,6 +249,30 @@ export async function getSaleRecords(limit = 50): Promise<ParkingSaleRecord[]> {
   return rows as ParkingSaleRecord[]
 }
 
+// 模糊查询销售记录：车位号 / 房号 / 业主姓名 / 销售单号 任意匹配
+export async function searchSaleRecords(keyword?: string, limit = 500): Promise<ParkingSaleRecord[]> {
+  const kw = (keyword || '').trim()
+  if (!kw) {
+    const { rows } = await pool.query(
+      `SELECT * FROM parking_sales_records ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    )
+    return rows as ParkingSaleRecord[]
+  }
+  const like = `%${kw}%`
+  const { rows } = await pool.query(
+    `SELECT * FROM parking_sales_records
+     WHERE space_no      ILIKE $1
+        OR house_key     ILIKE $1
+        OR owner_name    ILIKE $1
+        OR sale_order_no ILIKE $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [like, limit]
+  )
+  return rows as ParkingSaleRecord[]
+}
+
 // ---------- 调换日志 ----------
 export async function getChangeLogs(limit = 50): Promise<SpaceChangeLog[]> {
   const { rows } = await pool.query(
