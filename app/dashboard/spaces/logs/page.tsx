@@ -1,6 +1,8 @@
-import { getLifecycleLogs } from '@/lib/queries'
+import { getLifecycleLogs, getSpaceById } from '@/lib/queries'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import LogsClient from './logs-client'
+import type { SpaceManageOrder } from '../components/doc-print'
 
 // ============================================================
 //  车位台账变更日志 - 新增/取消记录查询（服务端组件）
@@ -32,6 +34,31 @@ export default async function SpaceLifecycleLogsPage({
   const logs = await getLifecycleLogs(spaceId, 500)
 
   const filtered = opType ? logs.filter((l) => l.op_type === opType) : logs
+
+  // 组装打印单据数据（补充车位详情）
+  const rows: (SpaceManageOrder & { op_type: string; old_status?: string | null; new_status?: string | null; reason?: string | null; operator?: string | null })[] =
+    await Promise.all(
+      filtered.map(async (l) => {
+        const sp = await getSpaceById(l.space_id)
+        return {
+          change_order_no: l.change_order_no || `${l.op_type === '新增' ? 'XZ' : 'QX'}-${l.log_id}`,
+          space_id: l.space_id,
+          garage_zone: sp?.garage_zone || '',
+          space_type: sp?.space_type || '',
+          building_no: sp?.building_no || '',
+          house_key: sp?.house_key || '',
+          owner_name: sp?.owner_name || '',
+          price: sp?.price ?? '',
+          remarks: '',
+          reason: l.reason || '',
+          operator: l.operator || '',
+          apply_date: fmtTime(l.created_at),
+          op_type: l.op_type,
+          old_status: l.old_status,
+          new_status: l.new_status,
+        }
+      })
+    )
 
   return (
     <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
@@ -75,52 +102,7 @@ export default async function SpaceLifecycleLogsPage({
         )}
       </form>
 
-      <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>操作时间</th>
-                <th>车位号</th>
-                <th>变更单号</th>
-                <th>操作类型</th>
-                <th>变更前状态</th>
-                <th>变更后状态</th>
-                <th>原因</th>
-                <th>操作人</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan={8} className="text-center text-gray">
-                  {spaceId ? '暂无记录' : '暂无记录'}
-                </td></tr>
-              )}
-              {filtered.map((l) => (
-                <tr key={l.log_id}>
-                  <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.created_at)}</td>
-                  <td style={{ fontWeight: 600 }}>{l.space_id}</td>
-                  <td>{l.change_order_no || '—'}</td>
-                  <td>
-                    <span className={`badge ${l.op_type === '新增' ? 'badge-green' : 'badge-orange'}`}>
-                      {l.op_type}
-                    </span>
-                  </td>
-                  <td>{l.old_status || '—'}</td>
-                  <td>{l.new_status || '—'}</td>
-                  <td style={{ maxWidth: 220, whiteSpace: 'pre-wrap' }}>{l.reason || '—'}</td>
-                  <td>{l.operator || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length > 0 && (
-            <div className="text-xs text-gray" style={{ padding: '10px 14px', background: '#fafafa' }}>
-              共 <b>{filtered.length}</b> 条{opType ? `（已按「${opType}」过滤）` : ''}
-            </div>
-          )}
-        </div>
-      </section>
+      <LogsClient rows={rows} />
     </main>
   )
 }
