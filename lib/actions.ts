@@ -205,7 +205,8 @@ export interface SwapInput {
 }
 
 export async function swapSpace(input: SwapInput) {
-  return withTransaction(async (client) => {
+  try {
+    return await withTransaction(async (client) => {
     const oldS = await client.query(
       `SELECT * FROM parking_spaces WHERE space_id = $1`,
       [input.old_space_id]
@@ -237,7 +238,7 @@ export async function swapSpace(input: SwapInput) {
         input.old_space_id, oldS.rows[0].space_type, input.house_key,
         oldS.rows[0].price,
         input.new_space_id, targetSpace.space_type, input.house_key,
-        input.new_space_price || '',
+        input.new_space_price ? Number(input.new_space_price) : null,
         input.price_difference, input.swap_type, input.change_reason,
         input.receipt_no, input.new_receipt_no || '', input.remarks || '', input.operator, swapOrderNo,
       ]
@@ -261,7 +262,7 @@ export async function swapSpace(input: SwapInput) {
        WHERE space_id = $6`,
       [
         input.owner_name, input.phone, input.house_key,
-        input.new_space_price || '', input.new_receipt_no || '', input.new_space_id,
+        input.new_space_price ? Number(input.new_space_price) : null, input.new_receipt_no || '', input.new_space_id,
       ]
     )
 
@@ -275,7 +276,11 @@ export async function swapSpace(input: SwapInput) {
     )
 
     return { swap_order_no: swapOrderNo }
-  })
+    })
+  } catch (err: any) {
+    console.error('[swapSpace] 失败:', err?.message || err, err?.stack)
+    throw new Error(`调换失败：${err?.message || '数据库错误'}`)
+  }
 }
 
 // ==================== 团购下单 ====================
