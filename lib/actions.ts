@@ -220,7 +220,9 @@ export async function swapSpace(input: SwapInput) {
     if (newS.rowCount === 0) throw new Error(`目标车位 ${input.new_space_id} 不存在`)
 
     const targetSpace = newS.rows[0]
-    if (targetSpace.status !== '未售' && input.swap_type !== '业主互调') {
+    // swap_type 约束允许值: '加钱换车位' / '平换车位'
+    // 加钱换车位: 目标必须为未售; 平换车位(含业主间互换/团购互换): 允许目标已售
+    if (targetSpace.status !== '未售' && input.swap_type !== '平换车位') {
       throw new Error(`目标车位状态为"${targetSpace.status}"，无法调换`)
     }
 
@@ -230,9 +232,10 @@ export async function swapSpace(input: SwapInput) {
       `INSERT INTO parking_space_change_log
        (owner_name, phone, old_space_no, old_space_type, old_house_key,
         old_space_price, new_space_no, new_space_type, new_house_key,
-        new_space_price, price_difference, swap_type, change_reason,
+        new_space_price,         price_difference, swap_type, change_reason,
         receipt_no, new_receipt_no, remarks, operator, changed_at, swap_order_no, process_result)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),$18,'已完成')`,
+        // 注意: swap_type 必须属于约束允许值('加钱换车位'/'平换车位')
       [
         input.owner_name, input.phone,
         input.old_space_id, oldS.rows[0].space_type, input.house_key,
@@ -505,7 +508,7 @@ export async function swapGroupBuySpace(input: GroupSwapInput) {
        (owner_name, phone, old_space_no, old_space_type, old_house_key, old_space_price,
         new_space_no, new_space_type, new_house_key, new_space_price,
         price_difference, swap_type, change_reason, operator, changed_at, swap_order_no, process_result)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,'团购调换','团购车位调换（团购锁定车位互换）',
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,'平换车位','团购车位调换（团购锁定车位互换）',
                $11,NOW(),$12,'已完成')`,
       [
         from.group_company || '', '', input.from_space_id, from.space_type, from.house_key || '', from.price || 0,

@@ -35,7 +35,6 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
 
   // 其他
   const [diff, setDiff] = useState('0')
-  const [swapType, setSwapType] = useState('业主换池')
   const [reason, setReason] = useState('')
   const [remarks, setRemarks] = useState('')
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
@@ -108,7 +107,7 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
           phone,
           house_key: houseKey.trim(),
           price_difference: parseFloat(diff) || 0,
-          swap_type: swapType,
+          swap_type: (parseFloat(diff) || 0) !== 0 ? '加钱换车位' : '平换车位',
           change_reason: reason,
           receipt_no: receiptNo,
           new_receipt_no: newReceiptNo,
@@ -233,11 +232,12 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
 
         {/* 其他输入 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-          <Field label="调换类型">
-            <select className="select" value={swapType} onChange={e => setSwapType(e.target.value)}>
-              <option value="业主换池">业主换回开发商池</option>
-              <option value="业主互调">业主间互换</option>
-            </select>
+          <Field label="调换类型（按差价自动判定）">
+            <input
+              className="input"
+              value={(parseFloat(diff) || 0) !== 0 ? '加钱换车位' : '平换车位'}
+              readOnly
+            />
           </Field>
           <Field label="差价（元）">
             <input className="input" type="number" value={diff} onChange={e => setDiff(e.target.value)} />

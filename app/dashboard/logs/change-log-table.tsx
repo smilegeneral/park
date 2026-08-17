@@ -132,7 +132,7 @@ export default function ChangeLogTable({
                     {l.price_difference > 0 ? '+' : ''}{fmtMoney(l.price_difference)}
                   </td>
                   <td>
-                    <span className={`badge ${l.swap_type === '业主互调' ? 'badge-blue' : 'badge-orange'}`}>
+                    <span className={`badge ${l.swap_type === '加钱换车位' ? 'badge-orange' : 'badge-blue'}`}>
                       {l.swap_type}
                     </span>
                   </td>

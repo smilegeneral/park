@@ -159,7 +159,7 @@ export interface SpaceChangeLog {
   new_house_key: string
   new_space_price: number
   price_difference: number
-  swap_type: string        // 业主互调/业主换开发商池
+  swap_type: string        // 加钱换车位/平换车位（受 parking_space_change_log 表 CHECK 约束）
   change_reason: string
   receipt_no: string
   new_receipt_no: string
