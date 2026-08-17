@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { pool } from '@/lib/db'
+import pool from '@/lib/db'
 
 // GET /api/check-swap-order?no=BG074
 // 校验车位调换单号是否已存在

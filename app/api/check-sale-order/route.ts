@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { pool } from '@/lib/db'
+import pool from '@/lib/db'
 
 // GET /api/check-sale-order?no=S074
 // 校验车位销售单号是否已存在 (sale_order_no 为 UNIQUE)
