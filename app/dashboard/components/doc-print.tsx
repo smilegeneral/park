@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import type { SpaceChangeLog } from '@/lib/types'
 
 // 兼容 Date / string 的日期格式化
@@ -490,6 +491,9 @@ export default function DocPrintPanel({
       ? initialDoc
       : hasSale ? 'sale' : 'swap'
   )
+  const [mounted, setMounted] = useState(false)
+  const [printing, setPrinting] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   // 无可用单据
   if (!hasSale && !hasSwap && !hasChange) return null
@@ -500,8 +504,24 @@ export default function DocPrintPanel({
   const showPlate = hasChange && (docType === 'plate')
 
   function handlePrint() {
-    if (typeof window !== 'undefined') window.print()
+    setPrinting(true)
   }
+
+  // 渲染到 print-only 后触发打印，确保单据已挂载到 DOM
+  useEffect(() => {
+    if (printing && mounted) {
+      window.print()
+      setPrinting(false)
+    }
+  }, [printing, mounted])
+
+  // 待打印的单据（逃逸到 body 的 .print-only，避免被祖先 display:none 隐藏）
+  const printable =
+    showSale && saleOrder ? <SaleSlip order={saleOrder} />
+      : showSwap && swapOrder ? <SwapSlip order={swapOrder} />
+        : showApply && changeLog ? <SwapApplySlip log={changeLog} />
+          : showPlate && changeLog ? <SpacePlate spaceNo={changeLog.old_space_no} />
+            : null
 
   return (
     <div className="print-wrap" style={{ marginTop: 18 }}>
@@ -529,6 +549,11 @@ export default function DocPrintPanel({
       {showSwap && swapOrder && <SwapSlip order={swapOrder} />}
       {showApply && changeLog && <SwapApplySlip log={changeLog} />}
       {showPlate && changeLog && <SpacePlate spaceNo={changeLog.old_space_no} />}
+
+      {mounted && printing && printable && createPortal(
+        <div className="print-only">{printable}</div>,
+        document.body
+      )}
     </div>
   )
 }
