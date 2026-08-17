@@ -22,3 +22,7 @@ Thumbs.db
 
 # 临时脚本
 tmp-*
+# local dev/build logs
+build.log
+dev.log
+
