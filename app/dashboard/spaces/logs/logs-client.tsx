@@ -7,7 +7,11 @@ import { CancelSpaceSlip, AddSpaceSlip, type SpaceManageOrder } from '../../comp
 export default function LogsClient({
   rows,
 }: {
-  rows: (SpaceManageOrder & { op_type: string })[]
+  rows: (SpaceManageOrder & {
+    op_type: string
+    old_status?: string | null
+    new_status?: string | null
+  })[]
 }) {
   const [selectedNo, setSelectedNo] = useState<string | null>(null)
   const [printing, setPrinting] = useState(false)
