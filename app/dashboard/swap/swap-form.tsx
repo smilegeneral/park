@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { swapSpace, getOwnerSpaces, getOldConfirmNo } from '@/lib/actions'
 import type { ParkingSpace } from '@/lib/types'
 import DocPrintPanel, { type SwapOrder } from '@/app/dashboard/components/doc-print'
@@ -14,6 +14,9 @@ import DocPrintPanel, { type SwapOrder } from '@/app/dashboard/components/doc-pr
 // ============================================================
 
 export default function SwapForm({ availableSpaces }: { availableSpaces: ParkingSpace[] }) {
+  // 步骤0：车位调换单号（手动录入，可选）
+  const [swapOrderInput, setSwapOrderInput] = useState('')
+
   // 步骤1：房号 → 业主
   const [houseKey, setHouseKey] = useState('')
   const [ownerName, setOwnerName] = useState('')
@@ -37,9 +40,17 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
   const [diff, setDiff] = useState('0')
   const [reason, setReason] = useState('')
   const [remarks, setRemarks] = useState('')
-  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null)
   const [pending, startTransition] = useTransition()
   const [order, setOrder] = useState<SwapOrder | null>(null)
+
+  // 初始化: 拉取下一个 BG 调换单号预填输入框 (用户可修改)
+  useEffect(() => {
+    fetch('/api/next-swap-order')
+      .then(r => r.json())
+      .then(d => { if (d?.ok && d.swap_order_no) setSwapOrderInput(d.swap_order_no) })
+      .catch(() => {})
+  }, [])
 
   // 步骤1：输入房号带出业主 + 名下旧车位
   async function handleHouseKeyChange(v: string) {
@@ -106,6 +117,7 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
           owner_name: ownerName,
           phone,
           house_key: houseKey.trim(),
+          swap_order_no: swapOrderInput,
           price_difference: parseFloat(diff) || 0,
           swap_type: (parseFloat(diff) || 0) !== 0 ? '加钱换车位' : '平换车位',
           change_reason: reason,
@@ -138,7 +150,7 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
         })
         setMsg({ type: 'ok', text: `✅ 调换成功！单号：${res.swap_order_no}` })
         setOldSpaceId(''); setNewSpaceId(''); setDiff('0')
-        setReason(''); setReceiptNo(''); setNewReceiptNo(''); setRemarks('')
+        setSwapOrderInput(''); setReason(''); setReceiptNo(''); setNewReceiptNo(''); setRemarks('')
         setNewSpaceType(''); setNewSpacePrice('')
       } catch (e: any) {
         setMsg({ type: 'err', text: `❌ ${e?.message || '系统错误'}` })
@@ -149,6 +161,32 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
   return (
     <div>
       <form onSubmit={handleSubmit} className="no-print">
+        {/* 车位调换单号（房号前） */}
+        <div style={{ marginBottom: 10 }}>
+          <Field label="车位调换单号（自动生成，可修改）">
+            <input
+              className="input"
+              value={swapOrderInput}
+              onChange={e => setSwapOrderInput(e.target.value)}
+              onBlur={() => {
+                const v = swapOrderInput.trim()
+                if (!v) return
+                fetch(`/api/check-swap-order?no=${encodeURIComponent(v)}`)
+                  .then(r => r.json())
+                  .then(d => {
+                    if (d?.ok && d.exists) {
+                      setMsg({ type: 'err', text: `❌ 调换单号 ${v} 已存在，请更换编号` })
+                    } else if (msg?.type === 'err' && msg.text.includes('已存在')) {
+                      setMsg(null)
+                    }
+                  })
+                  .catch(() => {})
+              }}
+              placeholder="如 BG074"
+            />
+          </Field>
+        </div>
+
         {/* 步骤1：房号带业主 */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           <Field label="房号（房屋编号）*">

@@ -23,12 +23,16 @@ export default function SaleForm({ space, initialHouseKey = '' }: { space: Parki
   const [saleOrderNo, setSaleOrderNo] = useState('')
   const [remarks, setRemarks] = useState('')
   const [matched, setMatched] = useState<{ owner_name: string; phone: string; phone2?: string } | null>(null)
-  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null)
   const [pending, startTransition] = useTransition()
   const [saleOrder, setSaleOrder] = useState<SaleOrder | null>(null)
 
-  // 组件挂载后：若有预填房号（预订车位），自动带出业主档案
+  // 组件挂载后：预填下一个销售单号 + 若有预填房号（预订车位）自动带出业主档案
   useEffect(() => {
+    fetch('/api/next-sale-order')
+      .then(r => r.json())
+      .then(d => { if (d?.ok && d.sale_order_no) setSaleOrderNo(d.sale_order_no) })
+      .catch(() => {})
     if (initialHouseKey.trim()) {
       handleHouseKeyChange(initialHouseKey)
     }
@@ -113,8 +117,27 @@ export default function SaleForm({ space, initialHouseKey = '' }: { space: Parki
   return (
     <form onSubmit={handleSubmit} className="no-print" style={{ marginTop: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <Field label="车位销售单号">
-          <input className="input" value={saleOrderNo} onChange={e => setSaleOrderNo(e.target.value)} placeholder="如 XS-20260813-001" />
+        <Field label="车位销售单号（自动生成，可修改）">
+          <input
+            className="input"
+            value={saleOrderNo}
+            onChange={e => setSaleOrderNo(e.target.value)}
+            onBlur={() => {
+              const v = saleOrderNo.trim()
+              if (!v) return
+              fetch(`/api/check-sale-order?no=${encodeURIComponent(v)}`)
+                .then(r => r.json())
+                .then(d => {
+                  if (d?.ok && d.exists) {
+                    setMsg({ type: 'err', text: `❌ 销售单号 ${v} 已存在，请更换编号` })
+                  } else if (msg?.type === 'err' && msg.text.includes('已存在')) {
+                    setMsg(null)
+                  }
+                })
+                .catch(() => {})
+            }}
+            placeholder="如 S074"
+          />
         </Field>
         <Field label="车位类型（自动带出）">
           <input className="input" value={space.space_type || ''} readOnly placeholder="自动" />

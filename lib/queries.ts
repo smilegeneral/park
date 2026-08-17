@@ -344,6 +344,36 @@ export async function searchSaleRecords(keyword?: string, limit = 500): Promise<
 }
 
 // ---------- 调换日志 ----------
+// 获取下一个车位调换单号: BG + 三位数字, 从 074 起累加
+export async function getNextSwapOrderNo(): Promise<string> {
+  const { rows } = await pool.query(
+    `SELECT swap_order_no FROM parking_space_change_log
+     WHERE swap_order_no LIKE 'BG%'
+     ORDER BY swap_order_no DESC LIMIT 1`
+  )
+  let next = 74
+  if (rows.length > 0) {
+    const m = /BG(\d+)/.exec(rows[0].swap_order_no || '')
+    if (m) next = parseInt(m[1], 10) + 1
+  }
+  return `BG${String(next).padStart(3, '0')}`
+}
+
+// 获取下一个车位销售单号: S + 三位数字, 取库中 S 前缀最大序号 +1
+export async function getNextSaleOrderNo(): Promise<string> {
+  const { rows } = await pool.query(
+    `SELECT sale_order_no FROM parking_sales_records
+     WHERE sale_order_no LIKE 'S%'
+     ORDER BY sale_order_no DESC LIMIT 1`
+  )
+  let next = 1
+  if (rows.length > 0) {
+    const m = /S(\d+)/.exec(rows[0].sale_order_no || '')
+    if (m) next = parseInt(m[1], 10) + 1
+  }
+  return `S${String(next).padStart(3, '0')}`
+}
+
 export async function getChangeLogs(limit = 50): Promise<SpaceChangeLog[]> {
   const { rows } = await pool.query(
     `SELECT * FROM parking_space_change_log ORDER BY changed_at DESC LIMIT $1`,

@@ -84,6 +84,15 @@ export async function confirmRetailSale(input: RetailSaleInput, _operator: strin
     // 2. 使用界面录入的销售单号
     const saleOrderNo = input.sale_order_no
 
+    // 2.1 查重: sale_order_no 为 UNIQUE, 重复则报错
+    const dup = await client.query(
+      `SELECT 1 FROM parking_sales_records WHERE sale_order_no = $1 LIMIT 1`,
+      [saleOrderNo]
+    )
+    if (dup.rowCount && dup.rowCount > 0) {
+      throw new Error(`销售单号 ${saleOrderNo} 已存在，请更换编号`)
+    }
+
     // 3. 写入销售记录
     // 注意：is_group_buy 列是 varchar，数据库 CHECK 约束只允许 '是'/'否'
     await client.query(
@@ -201,6 +210,7 @@ export interface SwapInput {
   new_receipt_no?: string
   new_space_price?: string
   remarks?: string
+  swap_order_no?: string   // 手动录入的车位调换单号，缺省则自动生成
   operator: string
 }
 
@@ -226,7 +236,30 @@ export async function swapSpace(input: SwapInput) {
       throw new Error(`目标车位状态为"${targetSpace.status}"，无法调换`)
     }
 
-    const swapOrderNo = `SW-${Date.now()}`
+    let swapOrderNo = input.swap_order_no?.trim()
+    if (!swapOrderNo) {
+      // 兜底: 前端一般已预填 BG 单号; 若为空则查库生成
+      const maxRes = await client.query(
+        `SELECT swap_order_no FROM parking_space_change_log
+         WHERE swap_order_no LIKE 'BG%'
+         ORDER BY swap_order_no DESC LIMIT 1`
+      )
+      let next = 74
+      if (maxRes.rowCount && maxRes.rowCount > 0) {
+        const m = /BG(\d+)/.exec(maxRes.rows[0].swap_order_no || '')
+        if (m) next = parseInt(m[1], 10) + 1
+      }
+      swapOrderNo = `BG${String(next).padStart(3, '0')}`
+    }
+
+    // 查重: 若用户输入的调换单号已存在则报错
+    const dup = await client.query(
+      `SELECT 1 FROM parking_space_change_log WHERE swap_order_no = $1 LIMIT 1`,
+      [swapOrderNo]
+    )
+    if (dup.rowCount && dup.rowCount > 0) {
+      throw new Error(`调换单号 ${swapOrderNo} 已存在，请更换编号`)
+    }
 
     await client.query(
       `INSERT INTO parking_space_change_log
