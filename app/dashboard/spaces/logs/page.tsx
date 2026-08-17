@@ -2,7 +2,7 @@ import { getLifecycleLogs, getSpaceById } from '@/lib/queries'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import LogsClient from './logs-client'
-import type { SpaceManageOrder } from '../components/doc-print'
+import type { SpaceManageOrder } from '../../components/doc-print'
 
 // ============================================================
 //  车位台账变更日志 - 新增/取消记录查询（服务端组件）
