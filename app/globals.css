@@ -72,19 +72,25 @@ tr:hover td { background: #f5f9ff; }
 
 /* 打印时只显示业务单据 / 查询结果的 .print-area 内容 */
 @media print {
-  body { background: #fff; }
-  body * { visibility: hidden; }
-  .print-area, .print-area * { visibility: visible; }
+  html, body { background: #fff !important; height: auto !important; }
+  /* 关键：用 display 隐藏非单据内容，避免不可见内容占高产生空白页 */
+  body * { display: none !important; }
+  .print-area { display: block !important; }
+  .print-area * { display: revert !important; }
+
   .print-area {
-    position: absolute; left: 0; top: 0; width: 100%;
-    border: none !important; box-shadow: none !important; max-width: 100% !important;
+    position: static !important; left: auto !important; top: auto !important;
+    width: auto !important; max-width: none !important;
+    border: none !important; box-shadow: none !important;
     padding: 0 !important; margin: 0 !important;
   }
   .print-area table { border-collapse: collapse !important; }
   .print-area th, .print-area td { border: 1px solid #000 !important; padding: 6px 8px !important; }
-  .no-print, .no-print * { visibility: hidden !important; display: none !important; }
+  .no-print, .no-print * { display: none !important; }
+  /* 仅打印时显示：用于把弹层内的单据"逃逸"出来打印 */
+  .print-only { display: block !important; }
 
-  /* 车位销售单 / 变更申请单 / 团购单 / 团购核销单：201mm × 123mm，压缩内距单页打印 */
+  /* 车位销售单 / 变更申请单 / 团购单 / 团购核销单 / 取消车位单 / 新增车位单：201mm × 123mm，压缩内距单页打印 */
   @page slip-201 {
     size: 201mm 123mm;
     margin: 3mm;
@@ -107,11 +113,21 @@ tr:hover td { background: #f5f9ff; }
     margin: 10mm;
   }
   .plate-a4 {
+    page: plate-a4-page;
     position: absolute !important; left: 0; top: 0;
     width: 277mm !important; height: 190mm !important;
     display: flex !important; align-items: stretch !important;
   }
+  .plate-inner {
+    display: flex !important; flex-direction: column !important;
+    justify-content: center !important; align-items: stretch !important;
+  }
 }
+@page plate-a4-page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+.print-only { display: none; }
 
 /* ============ 右侧抽屉详情 ============ */
 .drawer-mask {

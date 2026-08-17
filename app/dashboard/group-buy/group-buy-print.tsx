@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import type { GroupBuyPurchase, GroupBuyVerifyDetail } from '@/lib/types'
 
 // ============================================================
@@ -164,6 +165,15 @@ export function VerifySlip({ v }: { v: GroupBuyVerifyDetail }) {
 // ===================== 打印预览按钮 + 弹层 =====================
 function PrintButton({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  // 屏幕预览（在弹层内，打印时隐藏）；打印副本渲染到 body，逃逸 no-print 以正常打印
+  const printCopy =
+    mounted && open
+      ? createPortal(<div className="print-only">{children}</div>, document.body)
+      : null
+
   return (
     <>
       <button
@@ -196,6 +206,7 @@ function PrintButton({ title, children }: { title: string; children: React.React
           </div>
         </div>
       )}
+      {printCopy}
     </>
   )
 }

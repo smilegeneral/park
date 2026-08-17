@@ -1,7 +1,9 @@
 'use client'
-import { useCallback, useState, useTransition } from 'react'
+import { useCallback, useState, useTransition, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { addParkingSpace, cancelParkingSpace, fetchUnsoldSpaces } from '@/lib/actions'
 import type { ParkingSpace } from '@/lib/types'
+import { AddSpaceSlip, CancelSpaceSlip, type SpaceManageOrder } from '@/dashboard/components/doc-print'
 import Link from 'next/link'
 
 // 车库分区选项（与销控图一致）
@@ -30,6 +32,9 @@ export default function ManageSpacesPage({
   const [selected, setSelected] = useState<string>('')
   const [cancelRemarks, setCancelRemarks] = useState('')
   const [cancelChangeOrderNo, setCancelChangeOrderNo] = useState('')
+  const [printOrder, setPrintOrder] = useState<{ kind: 'add' | 'cancel'; order: SpaceManageOrder } | null>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
 
   const loadUnsold = useCallback(() => {
     startTransition(async () => {
@@ -57,6 +62,18 @@ export default function ManageSpacesPage({
           remarks,
         })
         setMsg({ type: 'ok', text: `✅ 已新增车位 ${r.space_id}（状态：未售）` })
+        setPrintOrder({
+          kind: 'add',
+          order: {
+            change_order_no: changeOrderNo,
+            space_id: r.space_id,
+            garage_zone: garageZone,
+            space_type: spaceType,
+            remarks,
+            operator: '当前用户',
+            apply_date: new Date().toISOString().slice(0, 10),
+          },
+        })
         setSpaceId('')
         setChangeOrderNo('')
         setSpaceType('')
@@ -79,6 +96,22 @@ export default function ManageSpacesPage({
       try {
         await cancelParkingSpace(selected, cancelRemarks, cancelChangeOrderNo)
         setMsg({ type: 'ok', text: `✅ 车位 ${selected} 已取消，不可销售` })
+        const cancelled = unsold.find((s) => s.space_id === selected)
+        setPrintOrder({
+          kind: 'cancel',
+          order: {
+            change_order_no: cancelChangeOrderNo,
+            space_id: selected,
+            garage_zone: cancelled?.garage_zone || '',
+            space_type: cancelled?.space_type || '',
+            house_key: cancelled?.house_key || '',
+            owner_name: cancelled?.owner_name || '',
+            price: cancelled?.price,
+            reason: cancelRemarks,
+            operator: '当前用户',
+            apply_date: new Date().toISOString().slice(0, 10),
+          },
+        })
         setSelected('')
         setCancelRemarks('')
         setCancelChangeOrderNo('')
@@ -149,10 +182,15 @@ export default function ManageSpacesPage({
         {msg && (
           <div
             className={msg.type === 'ok' ? 'alert-success' : 'alert-error'}
-            style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
           >
             <span style={{ fontSize: 18 }}>{msg.type === 'ok' ? '✅' : '⚠️'}</span>
             <span>{msg.text}</span>
+            {printOrder && (
+              <button type="button" className="btn-primary no-print" style={{ marginLeft: 'auto', fontSize: 13 }} onClick={() => window.print()}>
+                🖨️ 打印{printOrder.kind === 'add' ? '新增车位' : '取消车位'}单据
+              </button>
+            )}
           </div>
         )}
 
@@ -300,6 +338,15 @@ export default function ManageSpacesPage({
           </form>
         )}
       </div>
+
+      {mounted && printOrder && createPortal(
+        <div className="print-only">
+          {printOrder.kind === 'add'
+            ? <AddSpaceSlip order={printOrder.order} />
+            : <CancelSpaceSlip order={printOrder.order} />}
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }

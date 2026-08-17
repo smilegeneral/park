@@ -308,15 +308,150 @@ export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
   )
 }
 
+// ===================== 取消 / 新增车位单据（201mm × 123mm） =====================
+export interface SpaceManageOrder {
+  change_order_no: string
+  space_id: string
+  garage_zone?: string
+  space_type?: string
+  building_no?: string
+  house_key?: string
+  owner_name?: string
+  price?: number | string
+  remarks?: string
+  reason?: string
+  operator?: string
+  apply_date: string
+}
+
+function SpaceManageSignRows() {
+  return (
+    <>
+      <tr>
+        <td colSpan={2} style={cellHead}>车位管理签字</td>
+        <td colSpan={2} style={cellHead}>主管领导签字</td>
+      </tr>
+      <tr>
+        <td colSpan={2} style={sigCell}>{''}</td>
+        <td colSpan={2} style={sigCell}>{''}</td>
+      </tr>
+    </>
+  )
+}
+
+// 取消车位单据
+export function CancelSpaceSlip({ order }: { order: SpaceManageOrder }) {
+  return (
+    <div className="print-area slip-201" style={slipBox}>
+      <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei", "黑体", serif' }}>
+        取消车位单据
+      </h2>
+      <div style={{ textAlign: 'right', fontSize: 14, marginBottom: 12 }}>
+        变更单号：{order.change_order_no || ''}
+      </div>
+      <table style={slipTable}>
+        <colgroup>
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '28%' }} />
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '28%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <td style={cellHead}>车位号</td>
+            <td style={cellVal}>{order.space_id}</td>
+            <td style={cellHead}>所属分区</td>
+            <td style={cellVal}>{order.garage_zone || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>车位类型</td>
+            <td style={cellVal}>{order.space_type || ''}</td>
+            <td style={cellHead}>楼栋-单元-房号</td>
+            <td style={cellVal}>{order.house_key || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>业主姓名</td>
+            <td style={cellVal}>{order.owner_name || ''}</td>
+            <td style={cellHead}>车位价格</td>
+            <td style={cellVal}>{order.price != null ? `¥${Number(order.price).toFixed(0)}` : ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>取消原因</td>
+            <td colSpan={3} style={{ ...cellVal, textAlign: 'left' }}>{order.reason || order.remarks || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>经办人</td>
+            <td style={cellVal}>{order.operator || ''}</td>
+            <td style={cellHead}>申请日期</td>
+            <td style={cellVal}>{order.apply_date}</td>
+          </tr>
+          <SpaceManageSignRows />
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// 新增车位单据
+export function AddSpaceSlip({ order }: { order: SpaceManageOrder }) {
+  return (
+    <div className="print-area slip-201" style={slipBox}>
+      <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei", "黑体", serif' }}>
+        新增车位单据
+      </h2>
+      <div style={{ textAlign: 'right', fontSize: 14, marginBottom: 12 }}>
+        变更单号：{order.change_order_no || ''}
+      </div>
+      <table style={slipTable}>
+        <colgroup>
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '28%' }} />
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '28%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <td style={cellHead}>车位号</td>
+            <td style={cellVal}>{order.space_id}</td>
+            <td style={cellHead}>所属分区</td>
+            <td style={cellVal}>{order.garage_zone || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>车位类型</td>
+            <td style={cellVal}>{order.space_type || ''}</td>
+            <td style={cellHead}>楼栋-单元-房号</td>
+            <td style={cellVal}>{order.house_key || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>车位价格</td>
+            <td style={cellVal}>{order.price != null ? `¥${Number(order.price).toFixed(0)}` : ''}</td>
+            <td style={cellHead}>业主姓名</td>
+            <td style={cellVal}>{order.owner_name || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>备注</td>
+            <td colSpan={3} style={{ ...cellVal, textAlign: 'left' }}>{order.remarks || ''}</td>
+          </tr>
+          <tr>
+            <td style={cellHead}>经办人</td>
+            <td style={cellVal}>{order.operator || ''}</td>
+            <td style={cellHead}>申请日期</td>
+            <td style={cellVal}>{order.apply_date}</td>
+          </tr>
+          <SpaceManageSignRows />
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ===================== 车位牌（A4 横向） =====================
 // 三行：未售车位 / 可临时停放 / 车位号：{{old_space_no}}（右对齐，字号小）
 export function SpacePlate({ spaceNo }: { spaceNo: string }) {
   return (
     <div className="print-area plate-a4">
-      <div style={{
+      <div className="plate-inner" style={{
         height: '100%', width: '100%',
-        display: 'flex', flexDirection: 'column',
-        justifyContent: 'center', alignItems: 'stretch',
         fontFamily: '"SimHei", "黑体", serif', fontWeight: 700,
         padding: '0 40px',
       }}>
