@@ -79,9 +79,11 @@ tr:hover td { background: #f5f9ff; }
   .print-area,
   .app-shell,
   .app-content,
+  .print-wrap,
+  .print-only,
   .print-area * { display: revert !important; }
 
-  .app-shell, .app-content { display: block !important; padding: 0 !important; margin: 0 !important; min-height: 0 !important; }
+  .app-shell, .app-content, .print-wrap { display: block !important; padding: 0 !important; margin: 0 !important; min-height: 0 !important; }
   .print-area {
     position: static !important; left: auto !important; top: auto !important;
     width: auto !important; max-width: none !important;
@@ -90,12 +92,14 @@ tr:hover td { background: #f5f9ff; }
   }
   .print-area table { border-collapse: collapse !important; }
   .print-area th, .print-area td { border: 1px solid #000 !important; padding: 6px 8px !important; }
-  /* no-print 容器保留可见，但隐藏其中除单据以外的全部内容（避免内部 .print-area 被误隐藏导致空白页） */
+  /* 隐藏 print-wrap 内非单据内容（如预览工具栏） */
+  .print-wrap *:not(.print-area):not(.print-area *) { display: none !important; }
+  /* no-print 容器保留可见，但隐藏其中除单据/单据包裹层以外的全部内容 */
   .no-print {
     display: block !important; padding: 0 !important; margin: 0 !important;
     border: 0 !important; box-shadow: none !important; background: transparent !important;
   }
-  .no-print *:not(.print-area):not(.print-area *) { display: none !important; }
+  .no-print *:not(.print-area):not(.print-area *):not(.print-wrap):not(.print-wrap *) { display: none !important; }
   /* 仅打印时显示：用于把弹层内的单据"逃逸"出来打印 */
   .print-only { display: block !important; }
   .print-only * { display: revert !important; }

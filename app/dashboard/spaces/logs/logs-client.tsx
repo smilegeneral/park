@@ -21,16 +21,17 @@ export default function LogsClient({
 
   const selected = rows.find(r => r.change_order_no === selectedNo) || null
 
+  // 渲染 portal 后自动触发打印，确保单据已挂载到 DOM
+  useEffect(() => {
+    if (printing && mounted && selected) {
+      window.print()
+      setPrinting(false)
+    }
+  }, [printing, mounted, selected])
+
   const handlePrint = () => {
     if (!selected) return
     setPrinting(true)
-    // 等待 portal 渲染后再调用打印
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.print()
-        setPrinting(false)
-      })
-    })
   }
 
   return (

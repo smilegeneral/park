@@ -504,7 +504,7 @@ export default function DocPrintPanel({
   }
 
   return (
-    <div style={{ marginTop: 18 }}>
+    <div className="print-wrap" style={{ marginTop: 18 }}>
       <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <label style={{ fontSize: 13, color: '#555' }}>
           业务单据：
