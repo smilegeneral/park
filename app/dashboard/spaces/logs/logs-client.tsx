@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { CancelSpaceSlip, AddSpaceSlip, type SpaceManageOrder } from '../components/doc-print'
+import { CancelSpaceSlip, AddSpaceSlip, type SpaceManageOrder } from '../../components/doc-print'
 
 export default function LogsClient({
   rows,
