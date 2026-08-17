@@ -278,8 +278,9 @@ export async function swapSpace(input: SwapInput) {
     return { swap_order_no: swapOrderNo }
     })
   } catch (err: any) {
-    console.error('[swapSpace] 失败:', err?.message || err, err?.stack)
-    throw new Error(`调换失败：${err?.message || '数据库错误'}`)
+    const msg = `[swapSpace] 失败: ${err?.message || err}`
+    console.error(msg, err?.stack)
+    return { ok: false, error: `调换失败：${err?.message || '数据库错误'}` } as any
   }
 }
 

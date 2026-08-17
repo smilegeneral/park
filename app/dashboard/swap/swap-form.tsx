@@ -116,6 +116,9 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
           remarks,
           operator: '当前用户',
         })
+        if (!res || (res as any).ok === false) {
+          return setMsg({ type: 'err', text: `❌ ${(res as any).error || '调换失败，请重试'}` })
+        }
         setOrder({
           swap_order_no: res.swap_order_no,
           owner_name: ownerName,
@@ -139,7 +142,7 @@ export default function SwapForm({ availableSpaces }: { availableSpaces: Parking
         setReason(''); setReceiptNo(''); setNewReceiptNo(''); setRemarks('')
         setNewSpaceType(''); setNewSpacePrice('')
       } catch (e: any) {
-        setMsg({ type: 'err', text: `❌ ${e.message}` })
+        setMsg({ type: 'err', text: `❌ ${e?.message || '系统错误'}` })
       }
     })
   }

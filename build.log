@@ -1,0 +1,30 @@
+﻿
+> parking-system@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+
+node.exe : 
+所在位置 行:1 字符: 1
++ & "D:\Program Files\nodejs/node.exe" "D:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+> Build error occurred
+Error: [safe-delete][SAFE_DELETE_BULK_CONFIRM_REQUIRED] {"count":50,"threshold":50,"scope":"turn","targets":["D:\\parki
+ng-system\\.next\\standalone\\node_modules\\pg-cloudflare\\package.json"],"targetCount":1}
+    at checkBulkDeleteGuard (D:\Users\smile\AppData\Local\Programs\CodeBuddy CN\resources\app\extensions\genie\out\vend
+or\shim\node-safe-delete-shim.cjs:273:19)
+    at tryTrash (D:\Users\smile\AppData\Local\Programs\CodeBuddy CN\resources\app\extensions\genie\out\vendor\shim\node
+-safe-delete-shim.cjs:602:5)
+    at Object.unlink (D:\Users\smile\AppData\Local\Programs\CodeBuddy CN\resources\app\extensions\genie\out\vendor\shim
+\node-safe-delete-shim.cjs:735:9)
+    at unlinkPath (D:\parking-system\node_modules\next\dist\lib\recursive-delete.js:25:32)
+    at D:\parking-system\node_modules\next\dist\lib\recursive-delete.js:70:20
+    at Array.map (<anonymous>)
+    at recursiveDelete (D:\parking-system\node_modules\next\dist\lib\recursive-delete.js:51:30)
+    at async D:\parking-system\node_modules\next\dist\lib\recursive-delete.js:68:17
+    at async Promise.all (index 12)
+    at async recursiveDelete (D:\parking-system\node_modules\next\dist\lib\recursive-delete.js:51:5)
