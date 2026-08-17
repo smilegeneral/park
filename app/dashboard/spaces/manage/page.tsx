@@ -3,7 +3,7 @@ import { useCallback, useState, useTransition, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { addParkingSpace, cancelParkingSpace, fetchUnsoldSpaces } from '@/lib/actions'
 import type { ParkingSpace } from '@/lib/types'
-import { AddSpaceSlip, CancelSpaceSlip, type SpaceManageOrder } from '@/dashboard/components/doc-print'
+import { AddSpaceSlip, CancelSpaceSlip, type SpaceManageOrder } from '@/app/dashboard/components/doc-print'
 import Link from 'next/link'
 
 // 车库分区选项（与销控图一致）
