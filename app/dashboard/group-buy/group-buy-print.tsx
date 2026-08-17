@@ -33,7 +33,7 @@ function fmtDate(v: any): string {
 export function PurchaseSlip({ p }: { p: GroupBuyPurchase }) {
   const orderNo = `TG${String(p.purchase_id).padStart(3, '0')}`
   return (
-    <div className="print-area" style={slipBox}>
+    <div className="print-area slip-201" style={slipBox}>
       <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei","黑体",serif' }}>
         车位团购单
       </h2>
@@ -100,7 +100,7 @@ export function PurchaseSlip({ p }: { p: GroupBuyPurchase }) {
 export function VerifySlip({ v }: { v: GroupBuyVerifyDetail }) {
   const orderNo = `GCV${String(v.verify_id).padStart(3, '0')}`
   return (
-    <div className="print-area" style={slipBox}>
+    <div className="print-area slip-201" style={slipBox}>
       <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei","黑体",serif' }}>
         团购车位核销单
       </h2>

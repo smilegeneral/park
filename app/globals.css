@@ -84,6 +84,23 @@ tr:hover td { background: #f5f9ff; }
   .print-area th, .print-area td { border: 1px solid #000 !important; padding: 6px 8px !important; }
   .no-print, .no-print * { visibility: hidden !important; display: none !important; }
 
+  /* 车位销售单 / 变更申请单 / 团购单 / 团购核销单：201mm × 123mm，压缩内距单页打印 */
+  @page slip-201 {
+    size: 201mm 123mm;
+    margin: 3mm;
+  }
+  .slip-201 {
+    page: slip-201;
+    width: 100% !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    overflow: hidden !important;
+  }
+  .slip-201 h2 { margin: 0 0 2px !important; font-size: 19px !important; }
+  .slip-201 > div { margin: 0 0 6px !important; font-size: 13px !important; }
+  .slip-201 table { page-break-inside: avoid !important; width: 100% !important; }
+  .slip-201 th, .slip-201 td { padding: 3px 6px !important; }
+
   /* 车位牌：A4 横向，占满整页 */
   @page {
     size: A4 landscape;

@@ -56,7 +56,7 @@ const sigCell = { ...cellVal, height: 44 }
 // ===================== 车位销售单 =====================
 export function SaleSlip({ order }: { order: SaleOrder }) {
   return (
-    <div className="print-area" style={slipBox}>
+    <div className="print-area slip-201" style={slipBox}>
       <h2 style={{
         textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px',
         fontFamily: '"SimHei", "黑体", serif',
@@ -126,7 +126,7 @@ export function SaleSlip({ order }: { order: SaleOrder }) {
 // ===================== 车位调换单 =====================
 export function SwapSlip({ order }: { order: SwapOrder }) {
   return (
-    <div className="print-area" style={slipBox}>
+    <div className="print-area slip-201" style={slipBox}>
       <h2 style={{
         textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px',
         fontFamily: '"SimHei", "黑体", serif',
@@ -222,7 +222,7 @@ const slipTable: React.CSSProperties = { width: '100%', borderCollapse: 'collaps
 // ===================== 车位变更申请单（基于变更日志真实字段） =====================
 export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
   return (
-    <div className="print-area" style={slipBox}>
+    <div className="print-area slip-201" style={slipBox}>
       <h2 style={{
         textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px',
         fontFamily: '"SimHei", "黑体", serif',
