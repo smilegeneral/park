@@ -140,8 +140,8 @@ export function SwapSlip({ order }: { order: SwapOrder }) {
 
       <table style={slipTable}>
         <colgroup>
-          <col style={{ width: '20%' }} />
-          <col style={{ width: '30%' }} />
+          <col style={{ width: '25%' }} />
+          <col style={{ width: '25%' }} />
           <col style={{ width: '25%' }} />
           <col style={{ width: '25%' }} />
         </colgroup>
@@ -236,8 +236,8 @@ export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
 
       <table style={slipTable}>
         <colgroup>
-          <col style={{ width: '20%' }} />
-          <col style={{ width: '30%' }} />
+          <col style={{ width: '25%' }} />
+          <col style={{ width: '25%' }} />
           <col style={{ width: '25%' }} />
           <col style={{ width: '25%' }} />
         </colgroup>
