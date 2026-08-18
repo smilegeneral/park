@@ -86,12 +86,11 @@ tr:hover td { background: #f5f9ff; }
   .app-shell, .app-content, .print-wrap { display: block !important; padding: 0 !important; margin: 0 !important; min-height: 0 !important; }
   .print-area {
     position: static !important; left: auto !important; top: auto !important;
-    width: auto !important; max-width: none !important;
+    width: auto !important;
     border: none !important; box-shadow: none !important;
-    padding: 0 !important; margin: 0 !important;
   }
   .print-area table { border-collapse: collapse !important; }
-  .print-area th, .print-area td { border: 1px solid #000 !important; padding: 6px 8px !important; }
+  .print-area th, .print-area td { border: 1px solid #000 !important; }
   /* 隐藏 print-wrap 内非单据内容（如预览工具栏） */
   .print-wrap *:not(.print-area):not(.print-area *) { display: none !important; }
   /* no-print 容器保留可见，但隐藏其中除单据/单据包裹层以外的全部内容 */
@@ -111,15 +110,11 @@ tr:hover td { background: #f5f9ff; }
   }
   .slip-201 {
     page: slip-201;
-    width: 100% !important;
     page-break-after: avoid !important;
     page-break-inside: avoid !important;
     overflow: hidden !important;
   }
-  .slip-201 h2 { margin: 0 0 2px !important; font-size: 19px !important; }
-  .slip-201 > div { margin: 0 0 6px !important; font-size: 13px !important; }
   .slip-201 table { page-break-inside: avoid !important; width: 100% !important; }
-  .slip-201 th, .slip-201 td { padding: 3px 6px !important; }
 
   /* 车位牌：A4 横向，占满整页 */
   @page {
