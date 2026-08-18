@@ -134,7 +134,7 @@ export function SwapSlip({ order }: { order: SwapOrder }) {
       }}>
         车位变更申请单
       </h2>
-      <div style={{ textAlign: 'right', fontSize: 18, marginBottom: 12, marginRight: '1cm' }}>
+      <div style={{ textAlign: 'right', fontSize: 18, marginBottom: 12, marginRight: '2cm' }}>
         调换单号：{order.swap_order_no}
       </div>
 
@@ -142,8 +142,8 @@ export function SwapSlip({ order }: { order: SwapOrder }) {
         <colgroup>
           <col style={{ width: '20%' }} />
           <col style={{ width: 'calc(30% - 1cm)' }} />
-          <col style={{ width: 'calc(25% - 1cm)' }} />
           <col style={{ width: '25%' }} />
+          <col style={{ width: 'calc(25% - 1cm)' }} />
         </colgroup>
         <tbody>
           <tr>
@@ -230,7 +230,7 @@ export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
       }}>
         车位变更申请单
       </h2>
-      <div style={{ textAlign: 'right', fontSize: 18, marginBottom: 12, marginRight: '1cm' }}>
+      <div style={{ textAlign: 'right', fontSize: 18, marginBottom: 12, marginRight: '2cm' }}>
         调换单号：{log.swap_order_no || ''}
       </div>
 
@@ -238,8 +238,8 @@ export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
         <colgroup>
           <col style={{ width: '20%' }} />
           <col style={{ width: 'calc(30% - 1cm)' }} />
-          <col style={{ width: 'calc(25% - 1cm)' }} />
           <col style={{ width: '25%' }} />
+          <col style={{ width: 'calc(25% - 1cm)' }} />
         </colgroup>
         <tbody>
           <tr>
