@@ -281,8 +281,8 @@ export async function swapSpace(input: SwapInput) {
        (owner_name, phone, old_space_no, old_space_type, old_house_key,
         old_space_price, new_space_no, new_space_type, new_house_key,
         new_space_price,         price_difference, swap_type, change_reason,
-        receipt_no, new_receipt_no, remarks, operator, changed_at, swap_order_no, process_result)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),$18,'已完成')`,
+        receipt_no, new_receipt_no, remarks, operator, changed_at, swap_order_no, process_result, employee_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),$18,'已完成',$19)`,
         // 注意: swap_type 必须属于约束允许值('加钱换车位'/'平换车位')
       [
         input.owner_name, input.phone,
@@ -292,14 +292,16 @@ export async function swapSpace(input: SwapInput) {
         input.new_space_price ? Number(input.new_space_price) : null,
         input.price_difference, input.swap_type, input.change_reason,
         input.receipt_no, input.new_receipt_no || '', input.remarks || '', input.operator, swapOrderNo,
+        oldS.rows[0].employee_name || '',
       ]
     )
 
-    // 原车位 → 未售
+    // 原车位 → 未售，并清空楼栋/单元/房间及员工字段
     await client.query(
       `UPDATE parking_spaces
        SET status = '未售', owner_name = '', phone = '',
-           house_key = '', updated_at = NOW()
+           house_key = '', building_no = '', unit_no = '', room_no = '', employee_name = '',
+           updated_at = NOW()
        WHERE space_id = $1`,
       [input.old_space_id]
     )

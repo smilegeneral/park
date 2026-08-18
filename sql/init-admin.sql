@@ -159,7 +159,8 @@ CREATE TABLE IF NOT EXISTS parking_space_change_log (
   remarks TEXT,
   process_result VARCHAR(20) DEFAULT '已完成',
   preview_url TEXT,
-  swap_order_no VARCHAR(50)
+  swap_order_no VARCHAR(50),
+  employee_name VARCHAR(50)
 );
 
 -- 字段中文注释

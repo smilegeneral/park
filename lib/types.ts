@@ -167,6 +167,7 @@ export interface SpaceChangeLog {
   changed_at: string
   remarks: string
   process_result: string
+  employee_name: string
   preview_url: string
   swap_order_no: string
 }
