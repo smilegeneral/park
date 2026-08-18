@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import type {
   ReportSummary,
-  BuildingStat,
-  UnitStat,
   ZoneUnsoldStat,
   TopOwnerStat,
   NotBoughtOwnerStat,
@@ -41,24 +39,18 @@ function StatTile({ label, value, accent }: { label: string; value: string; acce
 
 export default function ReportClient({
   summary,
-  byBuilding,
-  byUnit,
   unsoldByZone,
   topOwners,
   notBought,
 }: {
   summary: ReportSummary
-  byBuilding: BuildingStat[]
-  byUnit: UnitStat[]
   unsoldByZone: ZoneUnsoldStat[]
   topOwners: TopOwnerStat[]
   notBought: NotBoughtOwnerStat[]
 }) {
-  const [tab, setTab] = useState<'building' | 'unit' | 'zone' | 'top' | 'notbought'>('building')
+  const [tab, setTab] = useState<'zone' | 'top' | 'notbought'>('zone')
 
   const tabs: { key: typeof tab; label: string }[] = [
-    { key: 'building', label: '按楼栋统计' },
-    { key: 'unit', label: '按楼栋/单元统计' },
     { key: 'zone', label: '按车库未售' },
     { key: 'top', label: '购买最多业主' },
     { key: 'notbought', label: '未购车位业主' },
@@ -88,88 +80,6 @@ export default function ReportClient({
           </button>
         ))}
       </div>
-
-      {/* 按楼栋 */}
-      {tab === 'building' && (
-        <Card title="按楼栋统计已售车位个数与金额">
-          <div style={{ overflowX: 'auto' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>楼栋</th>
-                  <th>已售个数</th>
-                  <th>已售金额</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byBuilding.length === 0 && (
-                  <tr><td colSpan={3} className="text-center text-gray">暂无已售车位</td></tr>
-                )}
-                {byBuilding.map(r => (
-                  <tr key={r.building_no}>
-                    <td style={{ fontWeight: 600 }}>{r.building_no || '—'}</td>
-                    <td>{r.sold_count}</td>
-                    <td style={{ color: '#fa8c16', fontWeight: 600 }}>{fmtMoney(r.sold_amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              {byBuilding.length > 0 && (
-                <tfoot>
-                  <tr style={{ fontWeight: 700 }}>
-                    <td>合计</td>
-                    <td>{byBuilding.reduce((s, r) => s + Number(r.sold_count || 0), 0)}</td>
-                    <td style={{ color: '#fa8c16' }}>
-                      {fmtMoney(byBuilding.reduce((s, r) => s + Number(r.sold_amount || 0), 0))}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </Card>
-      )}
-
-      {/* 按楼栋/单元 */}
-      {tab === 'unit' && (
-        <Card title="按楼栋 / 单元统计已售车位个数与金额">
-          <div style={{ overflowX: 'auto' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>楼栋</th>
-                  <th>单元</th>
-                  <th>已售个数</th>
-                  <th>已售金额</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byUnit.length === 0 && (
-                  <tr><td colSpan={4} className="text-center text-gray">暂无已售车位</td></tr>
-                )}
-                {byUnit.map(r => (
-                  <tr key={`${r.building_no}-${r.unit_no}`}>
-                    <td style={{ fontWeight: 600 }}>{r.building_no || '—'}</td>
-                    <td>{r.unit_no || '—'}</td>
-                    <td>{r.sold_count}</td>
-                    <td style={{ color: '#fa8c16', fontWeight: 600 }}>{fmtMoney(r.sold_amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              {byUnit.length > 0 && (
-                <tfoot>
-                  <tr style={{ fontWeight: 700 }}>
-                    <td colSpan={2}>合计</td>
-                    <td>{byUnit.reduce((s, r) => s + Number(r.sold_count || 0), 0)}</td>
-                    <td style={{ color: '#fa8c16' }}>
-                      {fmtMoney(byUnit.reduce((s, r) => s + Number(r.sold_amount || 0), 0))}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </Card>
-      )}
 
       {/* 按车库未售 */}
       {tab === 'zone' && (

@@ -7,7 +7,7 @@ const STATUSES = ['未售', '预订', '已售', '团购锁定', '已核销']
 export default function QueryForm() {
   const router = useRouter()
   const [f, setF] = useState({
-    space_id: '', garage_zone: '', building_no: '', status: '',
+    space_id: '', garage_zone: '', building_no: '', unit_no: '', status: '',
     owner_name: '', phone: '', house_key: '', space_type: '',
   })
 
@@ -21,7 +21,7 @@ export default function QueryForm() {
   }
 
   function reset() {
-    setF({ space_id: '', garage_zone: '', building_no: '', status: '', owner_name: '', phone: '', house_key: '', space_type: '' })
+    setF({ space_id: '', garage_zone: '', building_no: '', unit_no: '', status: '', owner_name: '', phone: '', house_key: '', space_type: '' })
     router.push('/dashboard/query')
   }
 
@@ -30,7 +30,14 @@ export default function QueryForm() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: 8 }}>
         <F label="车位号（模糊）"><input className="input" value={f.space_id} onChange={e => set('space_id', e.target.value)} placeholder="如 A-001" /></F>
         <F label="区域"><input className="input" value={f.garage_zone} onChange={e => set('garage_zone', e.target.value)} placeholder="如 A区" /></F>
-        <F label="楼栋（模糊）"><input className="input" value={f.building_no} onChange={e => set('building_no', e.target.value)} placeholder="如 1" /></F>
+        <F label="楼栋（精确）"><input className="input" value={f.building_no} onChange={e => set('building_no', e.target.value)} placeholder="如 1" /></F>
+        <F label="单元号">
+          <select className="select" value={f.unit_no} onChange={e => set('unit_no', e.target.value)}>
+            <option value="">全部</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+          </select>
+        </F>
         <F label="状态">
           <select className="select" value={f.status} onChange={e => set('status', e.target.value)}>
             <option value="">全部</option>

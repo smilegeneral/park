@@ -223,6 +223,7 @@ export interface SpaceSearchParams {
   space_id?: string
   garage_zone?: string
   building_no?: string
+  unit_no?: string
   status?: string
   owner_name?: string
   phone?: string
@@ -269,17 +270,6 @@ export const ROLE_LABELS: Record<number, string> = {
 }
 
 // ---------- 报表统计结果 ----------
-export interface BuildingStat {
-  building_no: string
-  sold_count: number
-  sold_amount: number
-}
-export interface UnitStat {
-  building_no: string
-  unit_no: string
-  sold_count: number
-  sold_amount: number
-}
 export interface ZoneUnsoldStat {
   garage_zone: string
   unsold_count: number

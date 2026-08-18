@@ -11,6 +11,7 @@ export default async function QueryPage({
     space_id: searchParams.space_id || '',
     garage_zone: searchParams.garage_zone || '',
     building_no: searchParams.building_no || '',
+    unit_no: searchParams.unit_no || '',
     status: searchParams.status || '',
     owner_name: searchParams.owner_name || '',
     phone: searchParams.phone || '',
@@ -19,6 +20,8 @@ export default async function QueryPage({
   }
   const hasFilter = Object.values(params).some(v => v)
   const results = hasFilter ? await searchSpaces(params) : []
+  const totalCount = results.length
+  const totalAmount = results.reduce((s, r) => s + Number(r.price || 0), 0)
 
   return (
     <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
@@ -73,6 +76,14 @@ export default async function QueryPage({
                   </tr>
                 ))}
               </tbody>
+              {results.length > 0 && (
+                <tfoot>
+                  <tr style={{ fontWeight: 700, background: '#fafafa' }}>
+                    <td colSpan={8}>合计（{totalCount} 个车位）</td>
+                    <td style={{ color: '#fa8c16' }}>¥{totalAmount.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </section>

@@ -16,8 +16,6 @@ import type {
   PrintTemplate,
   GarageMap,
   ReportSummary,
-  BuildingStat,
-  UnitStat,
   ZoneUnsoldStat,
   TopOwnerStat,
   NotBoughtOwnerStat,
@@ -301,7 +299,8 @@ export async function searchSpaces(params: SpaceSearchParams, limit = 200): Prom
   }
   like('space_id', params.space_id)
   exact('garage_zone', params.garage_zone)
-  like('building_no', params.building_no)
+  exact('building_no', params.building_no)
+  exact('unit_no', params.unit_no)
   exact('status', params.status)
   like('owner_name', params.owner_name)
   like('phone', params.phone)
@@ -527,34 +526,6 @@ export async function getReportSummary(): Promise<ReportSummary> {
     FROM parking_spaces
   `)
   return rows[0] as ReportSummary
-}
-
-// 按楼栋统计已售车位个数与金额
-export async function getSoldByBuilding(): Promise<BuildingStat[]> {
-  const { rows } = await pool.query(`
-    SELECT building_no,
-           COUNT(*)::int AS sold_count,
-           COALESCE(SUM(COALESCE(price,0)),0)::numeric AS sold_amount
-    FROM parking_spaces
-    WHERE status IN ('已售','已核销')
-    GROUP BY building_no
-    ORDER BY building_no
-  `)
-  return rows as BuildingStat[]
-}
-
-// 按楼栋+单元统计已售车位个数与金额
-export async function getSoldByUnit(): Promise<UnitStat[]> {
-  const { rows } = await pool.query(`
-    SELECT building_no, unit_no,
-           COUNT(*)::int AS sold_count,
-           COALESCE(SUM(COALESCE(price,0)),0)::numeric AS sold_amount
-    FROM parking_spaces
-    WHERE status IN ('已售','已核销')
-    GROUP BY building_no, unit_no
-    ORDER BY building_no, unit_no
-  `)
-  return rows as UnitStat[]
 }
 
 // 按车库（区域）统计未售车位个数

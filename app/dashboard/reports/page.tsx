@@ -1,7 +1,5 @@
 import {
   getReportSummary,
-  getSoldByBuilding,
-  getSoldByUnit,
   getUnsoldByZone,
   getTopOwners,
   getOwnersNotBought,
@@ -12,10 +10,8 @@ import ReportClient from './report-client'
 export const dynamic = 'force-dynamic'
 
 export default async function ReportsPage() {
-  const [summary, byBuilding, byUnit, unsoldByZone, topOwners, notBought] = await Promise.all([
+  const [summary, unsoldByZone, topOwners, notBought] = await Promise.all([
     getReportSummary(),
-    getSoldByBuilding(),
-    getSoldByUnit(),
     getUnsoldByZone(),
     getTopOwners(20),
     getOwnersNotBought(),
@@ -32,8 +28,6 @@ export default async function ReportsPage() {
 
       <ReportClient
         summary={summary}
-        byBuilding={byBuilding}
-        byUnit={byUnit}
         unsoldByZone={unsoldByZone}
         topOwners={topOwners}
         notBought={notBought}
