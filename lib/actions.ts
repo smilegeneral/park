@@ -4,6 +4,16 @@ import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, 
 import { auth } from './auth'
 import type { ParkingSpace } from './types'
 
+// HOUSEKEY 格式: building_no-unit_no-room_no
+function parseHouseKey(houseKey: string) {
+  const parts = (houseKey || '').split('-')
+  return {
+    building_no: parts[0] || '',
+    unit_no: parts[1] || '',
+    room_no: parts[2] || '',
+  }
+}
+
 // ============================================================
 //  所有写操作（锁位/销售/调换/团购/核销）集中在此
 //  全部使用数据库事务，保证数据一致性
@@ -107,7 +117,8 @@ export async function confirmRetailSale(input: RetailSaleInput, _operator: strin
       ]
     )
 
-    // 4. 更新车位状态 → 已售
+    // 4. 更新车位状态 → 已售（同时拆分 HOUSEKEY 填入 building_no/unit_no/room_no）
+    const saleHk = parseHouseKey(input.house_key)
     await client.query(
       `UPDATE parking_spaces
        SET status = '已售',
@@ -118,13 +129,17 @@ export async function confirmRetailSale(input: RetailSaleInput, _operator: strin
            receipt_no = $4,
            confirm_no = $5,
            house_key = $6,
-           remarks = COALESCE($7, ''),
+           building_no = $7,
+           unit_no = $8,
+           room_no = $9,
+           remarks = COALESCE($10, ''),
            updated_at = NOW()
-       WHERE space_id = $8`,
+       WHERE space_id = $11`,
       [
         input.owner_name, input.phone, input.price,
         input.receipt_no, input.confirm_no,
-        input.house_key, input.remarks || '',
+        input.house_key, saleHk.building_no, saleHk.unit_no, saleHk.room_no,
+        input.remarks || '',
         input.space_id,
       ]
     )
@@ -289,16 +304,20 @@ export async function swapSpace(input: SwapInput) {
       [input.old_space_id]
     )
 
-    // 新车位 → 已售
+    // 新车位 → 已售（同时拆分 HOUSEKEY 填入 building_no/unit_no/room_no）
+    const swapHk = parseHouseKey(input.house_key)
     await client.query(
       `UPDATE parking_spaces
        SET status = '已售', owner_name = $1, phone = $2,
            house_key = $3, price = $4, sale_date = NOW(),
-           confirm_no = $5, updated_at = NOW()
-       WHERE space_id = $6`,
+           confirm_no = $5,
+           building_no = $6, unit_no = $7, room_no = $8,
+           updated_at = NOW()
+       WHERE space_id = $9`,
       [
         input.owner_name, input.phone, input.house_key,
-        input.new_space_price ? Number(input.new_space_price) : null, input.new_receipt_no || '', input.new_space_id,
+        input.new_space_price ? Number(input.new_space_price) : null, input.new_receipt_no || '',
+        swapHk.building_no, swapHk.unit_no, swapHk.room_no, input.new_space_id,
       ]
     )
 
@@ -608,6 +627,8 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
 
     // 核销 = 团购锁定车位转让给最终业主 → 状态变为"已售"
     // 保留 is_group_buy=TRUE 与 group_company，以便区分团购来源的已售车位
+    // 同时拆分 HOUSEKEY 填入 building_no/unit_no/room_no
+    const verifyHk = parseHouseKey(input.house_key)
     await client.query(
       `UPDATE parking_spaces
        SET status = '已售',
@@ -618,9 +639,13 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
            sale_price = $4,
            is_group_buy = TRUE,
            group_company = $5,
+           building_no = $6,
+           unit_no = $7,
+           room_no = $8,
            updated_at = NOW()
-       WHERE space_id = $6`,
-      [input.owner_name, input.owner_phone, input.house_key, input.sale_amount, companyName, input.space_id]
+       WHERE space_id = $9`,
+      [input.owner_name, input.owner_phone, input.house_key, input.sale_amount, companyName,
+       verifyHk.building_no, verifyHk.unit_no, verifyHk.room_no, input.space_id]
     )
 
     await client.query(
