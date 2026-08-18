@@ -268,6 +268,46 @@ export const ROLE_LABELS: Record<number, string> = {
   3: '超级管理员',
 }
 
+// ---------- 报表统计结果 ----------
+export interface BuildingStat {
+  building_no: string
+  sold_count: number
+  sold_amount: number
+}
+export interface UnitStat {
+  building_no: string
+  unit_no: string
+  sold_count: number
+  sold_amount: number
+}
+export interface ZoneUnsoldStat {
+  garage_zone: string
+  unsold_count: number
+}
+export interface TopOwnerStat {
+  owner_name: string
+  building_no: string
+  unit_no: string
+  room_no: string
+  house_key: string
+  space_count: number
+  total_amount: number
+}
+export interface NotBoughtOwnerStat {
+  house_key: string
+  building_no: string
+  unit_no: string
+  room_no: string
+  owner_name: string
+  phone: string
+}
+export interface ReportSummary {
+  total_sold_amount: number          // 已售总金额（含已付款团购车位）
+  total_sold_count: number           // 已售车位总数（含团购已核销）
+  total_unsold: number               // 未售车位总数
+  group_verified_count: number       // 团购已核销（已售）车位数
+}
+
 // ---------- 车库分区（车位分布图使用的六个区） ----------
 export const GARAGE_ZONES: string[] = ['A区', 'B区', 'C区', 'D1区', 'D2区', 'E区']
 

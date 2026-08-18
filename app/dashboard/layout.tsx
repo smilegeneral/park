@@ -22,6 +22,7 @@ export default async function DashboardLayout({
     { href: '/dashboard/swap', label: '车位调换', icon: '🔄', perm: 'swap', group: '业务' },
     { href: '/dashboard/group-buy', label: '团购管理', icon: '🏢', perm: 'group', group: '业务' },
     { href: '/dashboard/records', label: '销售记录', icon: '📋', perm: 'sale', group: '报表' },
+    { href: '/dashboard/reports', label: '统计报表', icon: '📊', perm: 'sale', group: '报表' },
     { href: '/dashboard/owners', label: '业主信息变更', icon: '👤', perm: 'owners', group: '业务' },
     { href: '/dashboard/distribution', label: '车位分布图', icon: '🅿️', perm: 'public', group: '报表' },
     { href: '/dashboard/print', label: '表单打印', icon: '🖨️', perm: 'print', group: '报表' },

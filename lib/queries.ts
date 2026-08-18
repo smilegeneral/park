@@ -15,6 +15,12 @@ import type {
   SpaceSearchParams,
   PrintTemplate,
   GarageMap,
+  ReportSummary,
+  BuildingStat,
+  UnitStat,
+  ZoneUnsoldStat,
+  TopOwnerStat,
+  NotBoughtOwnerStat,
 } from './types'
 
 // ============================================================
@@ -504,4 +510,93 @@ export async function getLifecycleLogs(spaceId?: string, limit = 200): Promise<S
     [...params, limit]
   )
   return rows as SpaceLifecycleLog[]
+}
+
+// ============================================================
+//  报表统计
+// ============================================================
+
+// 汇总指标：已售总金额（含团购已核销/已售）、已售总数、未售总数
+export async function getReportSummary(): Promise<ReportSummary> {
+  const { rows } = await pool.query(`
+    SELECT
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN COALESCE(price,0) END), 0)::numeric AS total_sold_amount,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN 1 ELSE 0 END), 0)::int AS total_sold_count,
+      COALESCE(SUM(CASE WHEN status = '未售' THEN 1 ELSE 0 END), 0)::int AS total_unsold,
+      COALESCE(SUM(CASE WHEN status = '已售' AND is_group_buy = TRUE THEN 1 ELSE 0 END), 0)::int AS group_verified_count
+    FROM parking_spaces
+  `)
+  return rows[0] as ReportSummary
+}
+
+// 按楼栋统计已售车位个数与金额
+export async function getSoldByBuilding(): Promise<BuildingStat[]> {
+  const { rows } = await pool.query(`
+    SELECT building_no,
+           COUNT(*)::int AS sold_count,
+           COALESCE(SUM(COALESCE(price,0)),0)::numeric AS sold_amount
+    FROM parking_spaces
+    WHERE status IN ('已售','已核销')
+    GROUP BY building_no
+    ORDER BY building_no
+  `)
+  return rows as BuildingStat[]
+}
+
+// 按楼栋+单元统计已售车位个数与金额
+export async function getSoldByUnit(): Promise<UnitStat[]> {
+  const { rows } = await pool.query(`
+    SELECT building_no, unit_no,
+           COUNT(*)::int AS sold_count,
+           COALESCE(SUM(COALESCE(price,0)),0)::numeric AS sold_amount
+    FROM parking_spaces
+    WHERE status IN ('已售','已核销')
+    GROUP BY building_no, unit_no
+    ORDER BY building_no, unit_no
+  `)
+  return rows as UnitStat[]
+}
+
+// 按车库（区域）统计未售车位个数
+export async function getUnsoldByZone(): Promise<ZoneUnsoldStat[]> {
+  const { rows } = await pool.query(`
+    SELECT garage_zone,
+           COUNT(*)::int AS unsold_count
+    FROM parking_spaces
+    WHERE status = '未售'
+    GROUP BY garage_zone
+    ORDER BY garage_zone
+  `)
+  return rows as ZoneUnsoldStat[]
+}
+
+// 购买车位最多的业主（按 house_key 聚合已售车位）
+export async function getTopOwners(limit = 10): Promise<TopOwnerStat[]> {
+  const { rows } = await pool.query(
+    `SELECT owner_name, building_no, unit_no, room_no, house_key,
+            COUNT(*)::int AS space_count,
+            COALESCE(SUM(COALESCE(price,0)),0)::numeric AS total_amount
+     FROM parking_spaces
+     WHERE status IN ('已售','已核销') AND owner_name IS NOT NULL AND owner_name <> ''
+     GROUP BY owner_name, building_no, unit_no, room_no, house_key
+     ORDER BY space_count DESC, total_amount DESC
+     LIMIT $1`,
+    [limit]
+  )
+  return rows as TopOwnerStat[]
+}
+
+// 未购买车位的业主（在 owner_info 但名下无已售/已核销车位）
+export async function getOwnersNotBought(): Promise<NotBoughtOwnerStat[]> {
+  const { rows } = await pool.query(`
+    SELECT o.house_key, o.building_no, o.unit_no, o.room_no, o.owner_name, o.phone
+    FROM owner_info o
+    WHERE NOT EXISTS (
+      SELECT 1 FROM parking_spaces p
+      WHERE p.house_key = o.house_key
+        AND p.status IN ('已售','已核销')
+    )
+    ORDER BY o.building_no, o.unit_no, o.room_no
+  `)
+  return rows as NotBoughtOwnerStat[]
 }
