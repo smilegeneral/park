@@ -134,7 +134,7 @@ export function SwapSlip({ order }: { order: SwapOrder }) {
       }}>
         车位变更申请单
       </h2>
-      <div style={{ textAlign: 'right', fontSize: 14, marginBottom: 12 }}>
+      <div style={{ textAlign: 'right', fontSize: 18, marginBottom: 12, marginRight: '1cm' }}>
         调换单号：{order.swap_order_no}
       </div>
 
@@ -230,7 +230,7 @@ export function SwapApplySlip({ log }: { log: SpaceChangeLog }) {
       }}>
         车位变更申请单
       </h2>
-      <div style={{ textAlign: 'right', fontSize: 14, marginBottom: 12 }}>
+      <div style={{ textAlign: 'right', fontSize: 18, marginBottom: 12, marginRight: '1cm' }}>
         调换单号：{log.swap_order_no || ''}
       </div>
 
