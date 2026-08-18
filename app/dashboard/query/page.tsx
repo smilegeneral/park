@@ -1,6 +1,7 @@
 import { searchSpaces } from '@/lib/queries'
 import Link from 'next/link'
 import QueryForm from './query-form'
+import QueryActions from './query-actions'
 
 export default async function QueryPage({
   searchParams,
@@ -25,24 +26,25 @@ export default async function QueryPage({
 
   return (
     <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
-      <header className="flex mb-4" style={{ justifyContent: 'space-between' }}>
+      <header className="flex query-no-print mb-4" style={{ justifyContent: 'space-between' }}>
         <div className="flex" style={{ gap: 10, alignItems: 'center' }}>
           <Link href="/dashboard" className="btn-ghost" style={{ fontSize: 13 }}>← 返回</Link>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>🔍 车位查询</h1>
         </div>
-        <Link href="/dashboard/print?from=query" className="btn-ghost" style={{ fontSize: 13 }}>🖨️ 打印查询</Link>
       </header>
 
-      <section className="card mb-4">
+      <section className="card mb-4 query-no-print">
         <QueryForm />
       </section>
 
       {hasFilter && (
-        <p className="text-sm text-gray mb-2">共找到 {results.length} 条结果</p>
+        <p className="text-sm text-gray query-no-print mb-2">共找到 {results.length} 条结果</p>
       )}
 
       {hasFilter && (
-        <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <>
+          <QueryActions rows={results} />
+          <section className="card print-area" style={{ padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table className="table">
               <thead>
@@ -87,6 +89,7 @@ export default async function QueryPage({
             </table>
           </div>
         </section>
+        </>
       )}
     </main>
   )

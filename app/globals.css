@@ -103,6 +103,9 @@ tr:hover td { background: #f5f9ff; }
   .print-only { display: block !important; }
   .print-only * { display: revert !important; }
 
+  /* 车位查询页：打印时隐藏查询表单/标题/按钮等，仅保留结果表格（.print-area） */
+  .query-no-print { display: none !important; }
+
   /* 车位销售单 / 变更申请单 / 团购单 / 团购核销单 / 取消车位单 / 新增车位单：201mm × 123mm，压缩内距单页打印 */
   @page slip-201 {
     size: 201mm 123mm;
