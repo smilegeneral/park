@@ -25,7 +25,7 @@ export default async function QueryPage({
   const totalAmount = results.reduce((s, r) => s + Number(r.price || 0), 0)
 
   return (
-    <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+    <main className="print-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
       <header className="flex query-no-print mb-4" style={{ justifyContent: 'space-between' }}>
         <div className="flex" style={{ gap: 10, alignItems: 'center' }}>
           <Link href="/dashboard" className="btn-ghost" style={{ fontSize: 13 }}>← 返回</Link>
