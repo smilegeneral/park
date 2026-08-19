@@ -345,7 +345,7 @@ export function CancelSpaceSlip({ order }: { order: SpaceManageOrder }) {
   return (
     <div className="print-area slip-201" style={slipBox}>
       <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei", "黑体", serif' }}>
-        取消车位单据
+        取消车位申请单
       </h2>
       <div style={{ textAlign: 'right', fontSize: 14, marginBottom: 12 }}>
         变更单号：{order.change_order_no || ''}
@@ -367,24 +367,12 @@ export function CancelSpaceSlip({ order }: { order: SpaceManageOrder }) {
           <tr>
             <td style={cellHead}>车位类型</td>
             <td style={cellVal}>{order.space_type || ''}</td>
-            <td style={cellHead}>楼栋-单元-房号</td>
-            <td style={cellVal}>{order.house_key || ''}</td>
-          </tr>
-          <tr>
-            <td style={cellHead}>业主姓名</td>
-            <td style={cellVal}>{order.owner_name || ''}</td>
-            <td style={cellHead}>车位价格</td>
-            <td style={cellVal}>{order.price != null ? `¥${Number(order.price).toFixed(0)}` : ''}</td>
+            <td style={cellHead}>申请日期</td>
+            <td style={cellVal}>{order.apply_date}</td>
           </tr>
           <tr>
             <td style={cellHead}>取消原因</td>
             <td colSpan={3} style={{ ...cellVal, textAlign: 'left' }}>{order.reason || order.remarks || ''}</td>
-          </tr>
-          <tr>
-            <td style={cellHead}>经办人</td>
-            <td style={cellVal}>{order.operator || ''}</td>
-            <td style={cellHead}>申请日期</td>
-            <td style={cellVal}>{order.apply_date}</td>
           </tr>
           <SpaceManageSignRows />
         </tbody>
@@ -398,7 +386,7 @@ export function AddSpaceSlip({ order }: { order: SpaceManageOrder }) {
   return (
     <div className="print-area slip-201" style={slipBox}>
       <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei", "黑体", serif' }}>
-        新增车位单据
+        新增车位申请单
       </h2>
       <div style={{ textAlign: 'right', fontSize: 14, marginBottom: 12 }}>
         变更单号：{order.change_order_no || ''}
@@ -420,24 +408,12 @@ export function AddSpaceSlip({ order }: { order: SpaceManageOrder }) {
           <tr>
             <td style={cellHead}>车位类型</td>
             <td style={cellVal}>{order.space_type || ''}</td>
-            <td style={cellHead}>楼栋-单元-房号</td>
-            <td style={cellVal}>{order.house_key || ''}</td>
-          </tr>
-          <tr>
-            <td style={cellHead}>车位价格</td>
-            <td style={cellVal}>{order.price != null ? `¥${Number(order.price).toFixed(0)}` : ''}</td>
-            <td style={cellHead}>业主姓名</td>
-            <td style={cellVal}>{order.owner_name || ''}</td>
+            <td style={cellHead}>申请日期</td>
+            <td style={cellVal}>{order.apply_date}</td>
           </tr>
           <tr>
             <td style={cellHead}>备注</td>
             <td colSpan={3} style={{ ...cellVal, textAlign: 'left' }}>{order.remarks || ''}</td>
-          </tr>
-          <tr>
-            <td style={cellHead}>经办人</td>
-            <td style={cellVal}>{order.operator || ''}</td>
-            <td style={cellHead}>申请日期</td>
-            <td style={cellVal}>{order.apply_date}</td>
           </tr>
           <SpaceManageSignRows />
         </tbody>
