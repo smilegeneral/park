@@ -32,13 +32,13 @@ export default function ChangeLogTable({
   const [printDoc, setPrintDoc] = useState<'apply' | 'plate'>('apply')
   const [mounted, setMounted] = useState(false)
   const [printList, setPrintList] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string | number>>(new Set())
 
   const allChecked = logs.length > 0 && selected.size === logs.length
   function toggleAll() {
     setSelected(allChecked ? new Set() : new Set(logs.map(l => l.log_id)))
   }
-  function toggleOne(id: string) {
+  function toggleOne(id: string | number) {
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id); else next.add(id)

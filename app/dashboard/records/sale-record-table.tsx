@@ -31,13 +31,13 @@ export default function SaleRecordTable({
   const [printOrder, setPrintOrder] = useState<SaleOrder | null>(null)
   const [mounted, setMounted] = useState(false)
   const [printList, setPrintList] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string | number>>(new Set())
 
   const allChecked = records.length > 0 && selected.size === records.length
   function toggleAll() {
     setSelected(allChecked ? new Set() : new Set(records.map(r => r.record_id)))
   }
-  function toggleOne(id: string) {
+  function toggleOne(id: string | number) {
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id); else next.add(id)
