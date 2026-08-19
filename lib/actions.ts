@@ -282,7 +282,7 @@ export async function swapSpace(input: SwapInput) {
         old_space_price, new_space_no, new_space_type, new_house_key,
         new_space_price,         price_difference, swap_type, change_reason,
         receipt_no, new_receipt_no, remarks, operator, changed_at, swap_order_no, process_result, employee_name)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),$18,'已完成',$19)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),$18,'更换车位牌',$19)`,
         // 注意: swap_type 必须属于约束允许值('加钱换车位'/'平换车位')
       [
         input.owner_name, input.phone,
@@ -924,6 +924,39 @@ export async function markSpacePlateUploaded(input: MarkSpacePlateInput) {
       [url, recordId]
     )
     return { ok: true, record_id: recordId }
+  })
+}
+
+// 上传车位牌照片成功后，将图片地址写入车位变更记录，并把处理状态置为「已完成」
+export async function markChangeLogPlateUploaded(input: { log_id: number; image_url: string }) {
+  const logId = Number(input.log_id)
+  if (!logId || logId <= 0) throw new Error('变更记录 ID 不合法')
+  const url = (input.image_url || '').trim()
+  if (!url) throw new Error('图片地址无效')
+
+  return withTransaction(async (client) => {
+    const exist = await client.query(`SELECT log_id, preview_url FROM parking_space_change_log WHERE log_id = $1`, [logId])
+    if (!exist.rowCount || exist.rowCount === 0) {
+      throw new Error('变更记录不存在')
+    }
+    const oldUrl: string | null = exist.rows[0].preview_url
+    if (oldUrl) {
+      try {
+        const { keyFromUrl, deleteFromR2 } = await import('./object-storage')
+        const oldKey = keyFromUrl(oldUrl)
+        if (oldKey) await deleteFromR2(oldKey)
+      } catch {
+        // 删除旧图失败不阻断主流程
+      }
+    }
+
+    await client.query(
+      `UPDATE parking_space_change_log
+       SET preview_url = $1, process_result = '已完成'
+       WHERE log_id = $2`,
+      [url, logId]
+    )
+    return { ok: true, log_id: logId }
   })
 }
 

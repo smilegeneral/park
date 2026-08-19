@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { SpaceChangeLog } from '@/lib/types'
 import DocPrintPanel from '@/app/dashboard/components/doc-print'
+import ChangeLogPlateUploader from '@/app/dashboard/logs/change-log-plate-uploader'
 
 // 兼容 Date / string 的时间格式化
 function fmtTime(v: any, len = 16): string {
@@ -33,6 +34,7 @@ export default function ChangeLogTable({
   const [mounted, setMounted] = useState(false)
   const [printList, setPrintList] = useState(false)
   const [selected, setSelected] = useState<Set<string | number>>(new Set())
+  const [plateTarget, setPlateTarget] = useState<SpaceChangeLog | null>(null)
 
   const allChecked = logs.length > 0 && selected.size === logs.length
   function toggleAll() {
@@ -60,6 +62,7 @@ export default function ChangeLogTable({
       if (e.key === 'Escape') {
         setDetail(null)
         setPrintLog(null)
+        setPlateTarget(null)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -205,10 +208,19 @@ export default function ChangeLogTable({
                     <button
                       type="button"
                       className="btn-secondary"
-                      style={{ padding: '2px 8px', fontSize: 12 }}
+                      style={{ padding: '2px 8px', fontSize: 12, marginRight: 6 }}
                       onClick={(e) => { e.stopPropagation(); setDetail(l) }}
                     >
                       查看详情
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ padding: '2px 8px', fontSize: 12, opacity: l.process_result === '已完成' ? 0.5 : 1, cursor: l.process_result === '已完成' ? 'not-allowed' : 'pointer' }}
+                      disabled={l.process_result === '已完成'}
+                      onClick={(e) => { e.stopPropagation(); if (l.process_result !== '已完成') setPlateTarget(l) }}
+                    >
+                      上传车位牌照片
                     </button>
                   </td>
                 </tr>
@@ -260,6 +272,28 @@ export default function ChangeLogTable({
               >
                 🖨️ 车位牌
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 上传车位牌照片弹窗 */}
+      {plateTarget && (
+        <div className="drawer-mask" onClick={() => setPlateTarget(null)}>
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="drawer-head">
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>上传车位牌照片 · 新车位 {plateTarget.new_space_no}</h3>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: 13 }}
+                onClick={() => setPlateTarget(null)}
+              >
+                ✕ 关闭
+              </button>
+            </div>
+            <div className="drawer-body">
+              <ChangeLogPlateUploader logId={plateTarget.log_id} spaceNo={plateTarget.new_space_no} />
             </div>
           </div>
         </div>
