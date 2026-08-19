@@ -102,6 +102,10 @@ export default function ChangeLogTable({
       const va = a[key] as any
       const vb = b[key] as any
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+      // 日期字段按时间戳比较（pg timestamptz 返回 Date 对象，直接 localeCompare 会乱序）
+      const ta = Date.parse(va as any)
+      const tb = Date.parse(vb as any)
+      if (!isNaN(ta) && !isNaN(tb)) return (ta - tb) * dir
       const sa = String(va ?? '')
       const sb = String(vb ?? '')
       return sa.localeCompare(sb, 'zh') * dir
@@ -184,6 +188,9 @@ export default function ChangeLogTable({
                 <th style={{ width: 40 }}>
                   <input type="checkbox" checked={allChecked} onChange={toggleAll} />
                 </th>
+                <th onClick={() => toggleSort('swap_order_no')} style={{ cursor: 'pointer' }}>
+                  车位变更单号{sort.key === 'swap_order_no' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
                 <th onClick={() => toggleSort('changed_at')} style={{ cursor: 'pointer' }}>
                   时间{sort.key === 'changed_at' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
@@ -210,7 +217,7 @@ export default function ChangeLogTable({
             </thead>
             <tbody>
               {logs.length === 0 && (
-                <tr><td colSpan={9} className="text-center text-gray">暂无变更记录</td></tr>
+                <tr><td colSpan={10} className="text-center text-gray">暂无变更记录</td></tr>
               )}
               {viewLogs.map(l => (
                 <tr
@@ -225,6 +232,7 @@ export default function ChangeLogTable({
                       onChange={() => toggleOne(l.log_id)}
                     />
                   </td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{l.swap_order_no}</td>
                   <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
                   <td>{l.owner_name}</td>
                   <td style={{ fontWeight: 600 }}>{l.old_space_no}</td>
@@ -362,11 +370,12 @@ export default function ChangeLogTable({
         <div className="print-only">
           <div className="print-area" style={{ padding: 12 }}>
             <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, margin: '0 0 12px' }}>
-              变更记录清单
+              调换记录清单
             </h2>
             <table>
               <thead>
                 <tr>
+                  <th>车位变更单号</th>
                   <th>时间</th>
                   <th>旧房号</th>
                   <th>业主</th>
@@ -380,6 +389,7 @@ export default function ChangeLogTable({
               <tbody>
                 {viewLogs.filter(l => selected.has(l.log_id)).map(l => (
                   <tr key={l.log_id}>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{l.swap_order_no}</td>
                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
                     <td>{l.old_house_key || '—'}</td>
                     <td>{l.owner_name}</td>
