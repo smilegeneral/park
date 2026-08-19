@@ -108,8 +108,8 @@ export async function confirmRetailSale(input: RetailSaleInput, _operator: strin
     await client.query(
       `INSERT INTO parking_sales_records
        (sale_order_no, space_no, space_type, room_no, house_key, owner_name, phone,
-        amount, sale_time, receipt_no, confirmation_no, remarks, is_group_buy, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,$10,$11,'否','已确认')`,
+        amount, sale_time, receipt_no, confirmation_no, remarks, is_group_buy, status, process_result)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,$10,$11,'否','已确认','更换车位牌')`,
       [
         saleOrderNo, input.space_id, space.space_type, input.house_key, input.house_key,
         input.owner_name, input.phone, input.price,
