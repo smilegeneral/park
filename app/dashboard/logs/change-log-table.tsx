@@ -296,10 +296,11 @@ export default function ChangeLogTable({
               <thead>
                 <tr>
                   <th>时间</th>
+                  <th>旧房号</th>
                   <th>业主</th>
                   <th>原车位</th>
                   <th>新车位</th>
-                  <th>差价</th>
+                  <th>新房号</th>
                   <th>类型</th>
                   <th>状态</th>
                 </tr>
@@ -308,10 +309,11 @@ export default function ChangeLogTable({
                 {logs.filter(l => selected.has(l.log_id)).map(l => (
                   <tr key={l.log_id}>
                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
+                    <td>{l.old_house_key || '—'}</td>
                     <td>{l.owner_name}</td>
                     <td style={{ fontWeight: 600 }}>{l.old_space_no}</td>
                     <td style={{ fontWeight: 600, color: '#1677ff' }}>{l.new_space_no}</td>
-                    <td>{l.price_difference > 0 ? '+' : ''}{fmtMoney(l.price_difference)}</td>
+                    <td>{l.new_house_key || '—'}</td>
                     <td>{l.swap_type}</td>
                     <td>{l.process_result}</td>
                   </tr>
