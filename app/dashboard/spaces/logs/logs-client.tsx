@@ -106,12 +106,13 @@ export default function LogsClient({
         {!selected && <span className="text-xs text-gray">请先点击选择一条记录</span>}
       </div>
 
-      {mounted && printing && selected && (
+      {mounted && printing && selected && createPortal(
         <div className="print-only">
           {selected.op_type === '新增'
             ? <AddSpaceSlip order={selected} />
             : <CancelSpaceSlip order={selected} />}
-        </div>
+        </div>,
+        document.body,
       )}
     </section>
   )
