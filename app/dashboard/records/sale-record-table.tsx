@@ -22,12 +22,15 @@ function fmtMoney(v: any): string {
 export default function SaleRecordTable({
   records,
   initialQ = '',
+  initialYear,
 }: {
   records: ParkingSaleRecord[]
   initialQ?: string
+  initialYear?: number
 }) {
   const router = useRouter()
   const [q, setQ] = useState(initialQ)
+  const [year, setYear] = useState<number | ''>(initialYear ?? '')
   const [detail, setDetail] = useState<ParkingSaleRecord | null>(null)
   const [printOrder, setPrintOrder] = useState<SaleOrder | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -101,10 +104,22 @@ export default function SaleRecordTable({
     return () => clearTimeout(t)
   }, [printList])
 
+  // 统计：基于当前筛选结果（records）计算总记录数与总金额
+  const totalAmount = records.reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+
+  const yearOptions = (() => {
+    const cur = new Date().getFullYear()
+    return Array.from({ length: 6 }, (_, i) => cur - i)
+  })()
+
   function doSearch(e: React.FormEvent) {
     e.preventDefault()
     const kw = q.trim()
-    router.push(kw ? `/dashboard/records?q=${encodeURIComponent(kw)}` : '/dashboard/records')
+    const params = new URLSearchParams()
+    if (kw) params.set('q', kw)
+    if (year !== '') params.set('y', String(year))
+    const qs = params.toString()
+    router.push(qs ? `/dashboard/records?${qs}` : '/dashboard/records')
   }
 
   // 把 ParkingSaleRecord 适配为 SaleOrder 供打印
@@ -152,6 +167,15 @@ export default function SaleRecordTable({
       <form className="card flex" onSubmit={doSearch} style={{ gap: 8, marginBottom: 16, alignItems: 'center' }}>
         <input
           className="form-input"
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value === '' ? '' : Number(e.target.value))}
+            className="text-sm"
+            style={{ padding: '6px 8px' }}
+          >
+            <option value="">全部年份</option>
+            {yearOptions.map(y => <option key={y} value={y}>{y} 年</option>)}
+          </select>
           placeholder="输入车位号 / 房号 / 业主姓名 / 销售单号 模糊查询"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -175,6 +199,9 @@ export default function SaleRecordTable({
         </button>
         <span className="text-sm text-gray" style={{ marginLeft: 8 }}>
           共 {records.length} 条，已选 {selected.size} 条
+        </span>
+        <span className="text-sm" style={{ marginLeft: 8, fontWeight: 600, color: '#1677ff' }}>
+          销售车位 {records.length} 个 · 总金额 ¥{totalAmount.toLocaleString()}
         </span>
         <button
           type="button"

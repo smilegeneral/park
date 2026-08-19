@@ -12,22 +12,23 @@ export const dynamic = 'force-dynamic'
 export default async function RecordsPage({
   searchParams,
 }: {
-  searchParams: { q?: string }
+  searchParams: { q?: string; y?: string }
 }) {
   const q = (searchParams.q || '').trim()
-  const records = await searchSaleRecords(q, 500)
+  const y = searchParams.y ? Number(searchParams.y) : undefined
+  const records = await searchSaleRecords(q, 500, y)
 
   return (
     <main style={{ maxWidth: 1280, margin: '0 auto', padding: '24px' }}>
       <header className="flex mb-4" style={{ justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>📋 销售记录</h1>
-          <p className="text-sm text-gray">车位销售全记录（支持车位号/房号/业主姓名/销售单号模糊查询）</p>
+          <p className="text-sm text-gray">车位销售全记录（支持车位号/房号/业主姓名/销售单号模糊查询，可按年份筛选并统计）</p>
         </div>
         <Link href="/dashboard" style={{ fontSize: 14 }}>← 返回</Link>
       </header>
 
-      <SaleRecordTable records={records} initialQ={q} />
+      <SaleRecordTable records={records} initialQ={q} initialYear={y} />
     </main>
   )
 }
