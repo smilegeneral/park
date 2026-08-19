@@ -165,17 +165,17 @@ export default function SaleRecordTable({
     <>
       {/* 搜索栏 */}
       <form className="card flex" onSubmit={doSearch} style={{ gap: 8, marginBottom: 16, alignItems: 'center' }}>
+        <select
+          value={year}
+          onChange={(e) => setYear(e.target.value === '' ? '' : Number(e.target.value))}
+          className="text-sm"
+          style={{ padding: '6px 8px' }}
+        >
+          <option value="">全部年份</option>
+          {yearOptions.map(y => <option key={y} value={y}>{y} 年</option>)}
+        </select>
         <input
           className="form-input"
-          <select
-            value={year}
-            onChange={(e) => setYear(e.target.value === '' ? '' : Number(e.target.value))}
-            className="text-sm"
-            style={{ padding: '6px 8px' }}
-          >
-            <option value="">全部年份</option>
-            {yearOptions.map(y => <option key={y} value={y}>{y} 年</option>)}
-          </select>
           placeholder="输入车位号 / 房号 / 业主姓名 / 销售单号 模糊查询"
           value={q}
           onChange={(e) => setQ(e.target.value)}
