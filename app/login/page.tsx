@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('guest')
+  const [password, setPassword] = useState('111111')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -52,7 +52,8 @@ export default function LoginPage() {
               className="input mt-2"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              placeholder="请输入管理员账号"
+              placeholder="请输入账号"
+              autoComplete="off"
               required
             />
           </div>
@@ -64,6 +65,7 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="请输入密码"
+              autoComplete="new-password"
               required
             />
           </div>
@@ -78,9 +80,7 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="text-xs text-gray text-center mt-4">
-          默认账号：admin / 123456（首次登录后请修改密码）
-          <br />
-          访客查看车位分布图：guest / 111111
+          访客账号已自动填入（guest / 111111），可直接登录查看车位分布图
         </p>
       </div>
     </div>
