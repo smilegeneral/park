@@ -92,6 +92,7 @@ export default async function DashboardPage() {
         <StatCard label="已售" value={stats.sold} color="#1677ff" dotClass="dot-sold" />
         <StatCard label="团购锁定" value={stats.group_locked} color="#fa8c16" dotClass="dot-group-locked" />
         <StatCard label="团购已售" value={stats.group_verified} color="#722ed1" dotClass="dot-verified" />
+        <StatCard label="取消车位" value={stats.cancelled} color="#ff4d4f" dotClass="dot-cancelled" />
       </section>
 
       {/* 区域快捷入口 */}

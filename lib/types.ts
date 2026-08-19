@@ -208,6 +208,7 @@ export interface SpaceStats {
   retail_locked: number    // 零售锁定
   group_locked: number     // 团购锁定
   group_verified: number   // 团购已售（团购核销后转为已售的车位）
+  cancelled: number        // 取消车位数
 }
 
 // ---------- 打印模板 ----------

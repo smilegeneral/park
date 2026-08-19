@@ -34,7 +34,8 @@ export async function getSpaceStats(): Promise<SpaceStats> {
       COALESCE(SUM(CASE WHEN status = '已售' THEN 1 ELSE 0 END), 0)::int AS sold,
       COALESCE(SUM(CASE WHEN status = '零售锁定' THEN 1 ELSE 0 END), 0)::int AS retail_locked,
       COALESCE(SUM(CASE WHEN status = '团购锁定' THEN 1 ELSE 0 END), 0)::int AS group_locked,
-      COALESCE(SUM(CASE WHEN status = '已售' AND is_group_buy = TRUE THEN 1 ELSE 0 END), 0)::int AS group_verified
+      COALESCE(SUM(CASE WHEN status = '已售' AND is_group_buy = TRUE THEN 1 ELSE 0 END), 0)::int AS group_verified,
+      COALESCE(SUM(CASE WHEN status = '取消' THEN 1 ELSE 0 END), 0)::int AS cancelled
     FROM parking_spaces
   `)
   return rows[0] as SpaceStats

@@ -63,6 +63,7 @@ tr:hover td { background: #f5f9ff; }
 .dot-sold { background: #1677ff; }
 .dot-group-locked { background: #fa8c16; }
 .dot-verified { background: #52c41a; }
+.dot-cancelled { background: #ff4d4f; }
 
 /* 可视化编辑区：编辑时显示表格边框，类似 Word */
 .doc-editor table { border-collapse: collapse; margin: 6px 0; }
