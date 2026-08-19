@@ -34,6 +34,29 @@ export default function SaleRecordTable({
   const [printList, setPrintList] = useState(false)
   const [selected, setSelected] = useState<Set<string | number>>(new Set())
   const [plateTarget, setPlateTarget] = useState<ParkingSaleRecord | null>(null)
+  const [sort, setSort] = useState<{ key: keyof ParkingSaleRecord | null; dir: 'asc' | 'desc' }>({ key: null, dir: 'asc' })
+
+  function toggleSort(key: keyof ParkingSaleRecord) {
+    setSort(prev =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' }
+    )
+  }
+  function sortRecords(list: ParkingSaleRecord[]) {
+    if (!sort.key) return list
+    const dir = sort.dir === 'asc' ? 1 : -1
+    const key = sort.key
+    return [...list].sort((a, b) => {
+      const va = a[key] as any
+      const vb = b[key] as any
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+      const sa = String(va ?? '')
+      const sb = String(vb ?? '')
+      return sa.localeCompare(sb, 'zh') * dir
+    })
+  }
+  const viewRecords = sortRecords(records)
 
   const allChecked = records.length > 0 && selected.size === records.length
   function toggleAll() {
@@ -172,16 +195,36 @@ export default function SaleRecordTable({
                 <th style={{ width: 40 }}>
                   <input type="checkbox" checked={allChecked} onChange={toggleAll} />
                 </th>
-                <th>销售单号</th>
-                <th>车位号</th>
-                <th>类型</th>
-                <th>房屋</th>
-                <th>业主</th>
-                <th>电话</th>
-                <th>金额</th>
-                <th>时间</th>
-                <th>状态</th>
-                <th>团购</th>
+                <th onClick={() => toggleSort('sale_order_no')} style={{ cursor: 'pointer' }}>
+                  销售单号{sort.key === 'sale_order_no' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('space_no')} style={{ cursor: 'pointer' }}>
+                  车位号{sort.key === 'space_no' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('space_type')} style={{ cursor: 'pointer' }}>
+                  类型{sort.key === 'space_type' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('house_key')} style={{ cursor: 'pointer' }}>
+                  房屋{sort.key === 'house_key' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('owner_name')} style={{ cursor: 'pointer' }}>
+                  业主{sort.key === 'owner_name' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('phone')} style={{ cursor: 'pointer' }}>
+                  电话{sort.key === 'phone' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('amount')} style={{ cursor: 'pointer' }}>
+                  金额{sort.key === 'amount' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('sale_time')} style={{ cursor: 'pointer' }}>
+                  时间{sort.key === 'sale_time' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('status')} style={{ cursor: 'pointer' }}>
+                  状态{sort.key === 'status' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('is_group_buy')} style={{ cursor: 'pointer' }}>
+                  团购{sort.key === 'is_group_buy' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -189,7 +232,7 @@ export default function SaleRecordTable({
               {records.length === 0 && (
                 <tr><td colSpan={12} className="text-center text-gray">暂无销售记录</td></tr>
               )}
-              {records.map(r => (
+              {viewRecords.map(r => (
                 <tr
                   key={r.record_id}
                   onClick={() => setDetail(r)}
@@ -343,7 +386,7 @@ export default function SaleRecordTable({
                 </tr>
               </thead>
               <tbody>
-                {records.filter(r => selected.has(r.record_id)).map(r => (
+                {viewRecords.filter(r => selected.has(r.record_id)).map(r => (
                   <tr key={r.record_id}>
                     <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sale_order_no}</td>
                     <td style={{ fontWeight: 600 }}>{r.space_no}</td>

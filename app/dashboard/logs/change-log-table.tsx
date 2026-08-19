@@ -85,6 +85,30 @@ export default function ChangeLogTable({
     router.push(kw ? `/dashboard/logs?q=${encodeURIComponent(kw)}` : '/dashboard/logs')
   }
 
+  const [sort, setSort] = useState<{ key: keyof SpaceChangeLog | null; dir: 'asc' | 'desc' }>({ key: null, dir: 'asc' })
+
+  function toggleSort(key: keyof SpaceChangeLog) {
+    setSort(prev =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' }
+    )
+  }
+  function sortLogs(list: SpaceChangeLog[]) {
+    if (!sort.key) return list
+    const dir = sort.dir === 'asc' ? 1 : -1
+    const key = sort.key
+    return [...list].sort((a, b) => {
+      const va = a[key] as any
+      const vb = b[key] as any
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
+      const sa = String(va ?? '')
+      const sb = String(vb ?? '')
+      return sa.localeCompare(sb, 'zh') * dir
+    })
+  }
+  const viewLogs = sortLogs(logs)
+
   // 详情字段展示
   const detailRows: [string, string][] = detail
     ? [
@@ -160,13 +184,27 @@ export default function ChangeLogTable({
                 <th style={{ width: 40 }}>
                   <input type="checkbox" checked={allChecked} onChange={toggleAll} />
                 </th>
-                <th>时间</th>
-                <th>业主</th>
-                <th>原车位</th>
-                <th>新车位</th>
-                <th>差价</th>
-                <th>类型</th>
-                <th>状态</th>
+                <th onClick={() => toggleSort('changed_at')} style={{ cursor: 'pointer' }}>
+                  时间{sort.key === 'changed_at' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('owner_name')} style={{ cursor: 'pointer' }}>
+                  业主{sort.key === 'owner_name' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('old_space_no')} style={{ cursor: 'pointer' }}>
+                  原车位{sort.key === 'old_space_no' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('new_space_no')} style={{ cursor: 'pointer' }}>
+                  新车位{sort.key === 'new_space_no' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('price_difference')} style={{ cursor: 'pointer' }}>
+                  差价{sort.key === 'price_difference' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('swap_type')} style={{ cursor: 'pointer' }}>
+                  类型{sort.key === 'swap_type' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th onClick={() => toggleSort('process_result')} style={{ cursor: 'pointer' }}>
+                  状态{sort.key === 'process_result' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -174,7 +212,7 @@ export default function ChangeLogTable({
               {logs.length === 0 && (
                 <tr><td colSpan={9} className="text-center text-gray">暂无变更记录</td></tr>
               )}
-              {logs.map(l => (
+              {viewLogs.map(l => (
                 <tr
                   key={l.log_id}
                   onClick={() => setDetail(l)}
@@ -340,7 +378,7 @@ export default function ChangeLogTable({
                 </tr>
               </thead>
               <tbody>
-                {logs.filter(l => selected.has(l.log_id)).map(l => (
+                {viewLogs.filter(l => selected.has(l.log_id)).map(l => (
                   <tr key={l.log_id}>
                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
                     <td>{l.old_house_key || '—'}</td>

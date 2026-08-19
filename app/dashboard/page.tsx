@@ -39,7 +39,7 @@ export default async function DashboardPage() {
         { href: '/dashboard/owners', label: '👤 业主信息变更', desc: '查看业主档案、变更联系方式，变更留痕', perm: 'owners' },
         { href: '/dashboard/distribution', label: '🅿️ 车位分布图', desc: '查看各车库车位分布与未售车位', perm: 'public' },
         { href: '/dashboard/print', label: '🖨️ 表单打印', desc: '查询表单打印与业务表单模板', perm: 'print' },
-        { href: '/dashboard/logs', label: '📜 变更日志', desc: '车位调换/业主变更全留痕', perm: 'spaces' },
+        { href: '/dashboard/logs', label: '📜 调换记录', desc: '车位调换/业主变更全留痕', perm: 'spaces' },
         { href: '/dashboard/users', label: '👥 用户与角色', desc: '账号、角色与权限管理', perm: 'users' },
       ].filter(item => can(item.perm))
 
