@@ -106,6 +106,9 @@ export default function SaleRecordTable({
 
   // 统计：基于当前筛选结果（records）计算总记录数与总金额
   const totalAmount = records.reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+  // 打印清单：仅统计已勾选记录的车位个数与金额合计
+  const printSelected = viewRecords.filter(r => selected.has(r.record_id))
+  const printAmount = printSelected.reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
 
   const yearOptions = (() => {
     const cur = new Date().getFullYear()
@@ -391,10 +394,7 @@ export default function SaleRecordTable({
       )}
 
       {/* 打印销售记录列表（portal 到 body，避免被隐藏的 main 祖先遮挡） */}
-      {printList && mounted && (() => {
-        const printSelected = viewRecords.filter(r => selected.has(r.record_id))
-        const printAmount = printSelected.reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
-        return createPortal(
+      {printList && mounted && createPortal(
         <div className="print-only">
           <div className="print-area" style={{ padding: 12 }}>
             <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, margin: '0 0 12px' }}>
@@ -414,7 +414,7 @@ export default function SaleRecordTable({
                 </tr>
               </thead>
               <tbody>
-                {viewRecords.filter(r => selected.has(r.record_id)).map(r => (
+                {printSelected.map(r => (
                   <tr key={r.record_id}>
                     <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sale_order_no}</td>
                     <td style={{ fontWeight: 600 }}>{r.space_no}</td>
@@ -439,8 +439,7 @@ export default function SaleRecordTable({
           </div>
         </div>,
         document.body,
-        )
-      })}
+      )}
     </>
   )
 }
