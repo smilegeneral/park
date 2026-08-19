@@ -378,7 +378,6 @@ export default function ChangeLogTable({
                   <th>车位变更单号</th>
                   <th>时间</th>
                   <th>旧房号</th>
-                  <th>业主</th>
                   <th>原车位</th>
                   <th>新车位</th>
                   <th>新房号</th>
@@ -392,7 +391,6 @@ export default function ChangeLogTable({
                     <td style={{ fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{l.swap_order_no}</td>
                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
                     <td>{l.old_house_key || '—'}</td>
-                    <td>{l.owner_name}</td>
                     <td style={{ fontWeight: 600 }}>{l.old_space_no}</td>
                     <td style={{ fontWeight: 600, color: '#1677ff' }}>{l.new_space_no}</td>
                     <td>{l.new_house_key || '—'}</td>

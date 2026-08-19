@@ -377,8 +377,6 @@ export default function SaleRecordTable({
                   <th>车位号</th>
                   <th>类型</th>
                   <th>房屋</th>
-                  <th>业主</th>
-                  <th>电话</th>
                   <th>金额</th>
                   <th>时间</th>
                   <th>状态</th>
@@ -392,8 +390,6 @@ export default function SaleRecordTable({
                     <td style={{ fontWeight: 600 }}>{r.space_no}</td>
                     <td>{r.space_type}</td>
                     <td>{r.house_key}</td>
-                    <td>{r.owner_name}</td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.phone}</td>
                     <td style={{ fontWeight: 600 }}>{fmtMoney(r.amount)}</td>
                     <td style={{ fontSize: 12 }}>{fmtTime(r.sale_time, 10)}</td>
                     <td>{r.status}</td>
