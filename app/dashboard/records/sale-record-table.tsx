@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ParkingSaleRecord } from '@/lib/types'
@@ -28,9 +29,12 @@ export default function SaleRecordTable({
   const [q, setQ] = useState(initialQ)
   const [detail, setDetail] = useState<ParkingSaleRecord | null>(null)
   const [printOrder, setPrintOrder] = useState<SaleOrder | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [printList, setPrintList] = useState(false)
 
   // ESC 关闭抽屉 / 打印预览
   useEffect(() => {
+    setMounted(true)
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setDetail(null)
@@ -40,6 +44,16 @@ export default function SaleRecordTable({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // 打印列表：渲染后立即调用浏览器打印，结束后关闭
+  useEffect(() => {
+    if (!printList) return
+    const t = setTimeout(() => {
+      window.print()
+      setPrintList(false)
+    }, 50)
+    return () => clearTimeout(t)
+  }, [printList])
 
   function doSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -108,6 +122,14 @@ export default function SaleRecordTable({
         <span className="text-sm text-gray" style={{ marginLeft: 8 }}>
           共 {records.length} 条
         </span>
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{ fontSize: 13, marginLeft: 8 }}
+          onClick={() => setPrintList(true)}
+        >
+          🖨️ 打印列表
+        </button>
       </form>
 
       {/* 结果列表 */}
@@ -224,6 +246,50 @@ export default function SaleRecordTable({
       )}
       {printOrder && (
         <DocPrintPanel saleOrder={printOrder} initialDoc="sale" />
+      )}
+
+      {/* 打印销售记录列表（portal 到 body，避免被隐藏的 main 祖先遮挡） */}
+      {printList && mounted && createPortal(
+        <div className="print-only">
+          <div className="print-area" style={{ padding: 12 }}>
+            <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, margin: '0 0 12px' }}>
+              销售记录清单
+            </h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>销售单号</th>
+                  <th>车位号</th>
+                  <th>类型</th>
+                  <th>房屋</th>
+                  <th>业主</th>
+                  <th>电话</th>
+                  <th>金额</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                  <th>团购</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map(r => (
+                  <tr key={r.record_id}>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sale_order_no}</td>
+                    <td style={{ fontWeight: 600 }}>{r.space_no}</td>
+                    <td>{r.space_type}</td>
+                    <td>{r.house_key}</td>
+                    <td>{r.owner_name}</td>
+                    <td style={{ fontFamily: 'monospace' }}>{r.phone}</td>
+                    <td style={{ fontWeight: 600 }}>{fmtMoney(r.amount)}</td>
+                    <td style={{ fontSize: 12 }}>{fmtTime(r.sale_time, 10)}</td>
+                    <td>{r.status}</td>
+                    <td>{r.is_group_buy === '是' ? '是' : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>,
+        document.body,
       )}
     </>
   )

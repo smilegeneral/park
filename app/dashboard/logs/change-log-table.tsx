@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { SpaceChangeLog } from '@/lib/types'
@@ -29,9 +30,12 @@ export default function ChangeLogTable({
   const [detail, setDetail] = useState<SpaceChangeLog | null>(null)
   const [printLog, setPrintLog] = useState<SpaceChangeLog | null>(null)
   const [printDoc, setPrintDoc] = useState<'apply' | 'plate'>('apply')
+  const [mounted, setMounted] = useState(false)
+  const [printList, setPrintList] = useState(false)
 
   // ESC 关闭抽屉 / 打印预览
   useEffect(() => {
+    setMounted(true)
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setDetail(null)
@@ -41,6 +45,16 @@ export default function ChangeLogTable({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // 打印列表：渲染后立即调用浏览器打印，结束后关闭
+  useEffect(() => {
+    if (!printList) return
+    const t = setTimeout(() => {
+      window.print()
+      setPrintList(false)
+    }, 50)
+    return () => clearTimeout(t)
+  }, [printList])
 
   function doSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -96,6 +110,14 @@ export default function ChangeLogTable({
         <span className="text-sm text-gray" style={{ marginLeft: 8 }}>
           共 {logs.length} 条
         </span>
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{ fontSize: 13, marginLeft: 8 }}
+          onClick={() => setPrintList(true)}
+        >
+          🖨️ 打印列表
+        </button>
       </form>
 
       {/* 结果列表 */}
@@ -223,6 +245,44 @@ export default function ChangeLogTable({
           changeLog={printLog}
           initialDoc={printDoc}
         />
+      )}
+
+      {/* 打印变更记录列表（portal 到 body，避免被隐藏的 main 祖先遮挡） */}
+      {printList && mounted && createPortal(
+        <div className="print-only">
+          <div className="print-area" style={{ padding: 12 }}>
+            <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, margin: '0 0 12px' }}>
+              变更记录清单
+            </h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>业主</th>
+                  <th>原车位</th>
+                  <th>新车位</th>
+                  <th>差价</th>
+                  <th>类型</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map(l => (
+                  <tr key={l.log_id}>
+                    <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
+                    <td>{l.owner_name}</td>
+                    <td style={{ fontWeight: 600 }}>{l.old_space_no}</td>
+                    <td style={{ fontWeight: 600, color: '#1677ff' }}>{l.new_space_no}</td>
+                    <td>{l.price_difference > 0 ? '+' : ''}{fmtMoney(l.price_difference)}</td>
+                    <td>{l.swap_type}</td>
+                    <td>{l.process_result}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>,
+        document.body,
       )}
     </>
   )
