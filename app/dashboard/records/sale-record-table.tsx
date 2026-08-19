@@ -391,7 +391,10 @@ export default function SaleRecordTable({
       )}
 
       {/* 打印销售记录列表（portal 到 body，避免被隐藏的 main 祖先遮挡） */}
-      {printList && mounted && createPortal(
+      {printList && mounted && (() => {
+        const printSelected = viewRecords.filter(r => selected.has(r.record_id))
+        const printAmount = printSelected.reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+        return createPortal(
         <div className="print-only">
           <div className="print-area" style={{ padding: 12 }}>
             <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, margin: '0 0 12px' }}>
@@ -424,11 +427,20 @@ export default function SaleRecordTable({
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr style={{ fontWeight: 700, borderTop: '2px solid #000' }}>
+                  <td colSpan={4} style={{ textAlign: 'right' }}>合计</td>
+                  <td>车位 {printSelected.length} 个</td>
+                  <td colSpan={2} style={{ fontWeight: 700 }}>¥{printAmount.toLocaleString()}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>,
         document.body,
-      )}
+        )
+      })}
     </>
   )
 }
