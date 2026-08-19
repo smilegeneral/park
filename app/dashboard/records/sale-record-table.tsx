@@ -31,6 +31,26 @@ export default function SaleRecordTable({
   const [printOrder, setPrintOrder] = useState<SaleOrder | null>(null)
   const [mounted, setMounted] = useState(false)
   const [printList, setPrintList] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  const allChecked = records.length > 0 && selected.size === records.length
+  function toggleAll() {
+    setSelected(allChecked ? new Set() : new Set(records.map(r => r.record_id)))
+  }
+  function toggleOne(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function handlePrintSelected() {
+    if (selected.size === 0) {
+      alert('请先勾选要打印的记录')
+      return
+    }
+    setPrintList(true)
+  }
 
   // ESC 关闭抽屉 / 打印预览
   useEffect(() => {
@@ -119,16 +139,24 @@ export default function SaleRecordTable({
             清除
           </Link>
         )}
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{ fontSize: 13, marginLeft: 8 }}
+          onClick={toggleAll}
+        >
+          {allChecked ? '取消全选' : '全选'}
+        </button>
         <span className="text-sm text-gray" style={{ marginLeft: 8 }}>
-          共 {records.length} 条
+          共 {records.length} 条，已选 {selected.size} 条
         </span>
         <button
           type="button"
           className="btn-secondary"
           style={{ fontSize: 13, marginLeft: 8 }}
-          onClick={() => setPrintList(true)}
+          onClick={handlePrintSelected}
         >
-          🖨️ 打印列表
+          🖨️ 打印勾选
         </button>
       </form>
 
@@ -138,6 +166,9 @@ export default function SaleRecordTable({
           <table>
             <thead>
               <tr>
+                <th style={{ width: 40 }}>
+                  <input type="checkbox" checked={allChecked} onChange={toggleAll} />
+                </th>
                 <th>销售单号</th>
                 <th>车位号</th>
                 <th>类型</th>
@@ -153,7 +184,7 @@ export default function SaleRecordTable({
             </thead>
             <tbody>
               {records.length === 0 && (
-                <tr><td colSpan={11} className="text-center text-gray">暂无销售记录</td></tr>
+                <tr><td colSpan={12} className="text-center text-gray">暂无销售记录</td></tr>
               )}
               {records.map(r => (
                 <tr
@@ -161,6 +192,13 @@ export default function SaleRecordTable({
                   onClick={() => setDetail(r)}
                   style={{ cursor: 'pointer' }}
                 >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.record_id)}
+                      onChange={() => toggleOne(r.record_id)}
+                    />
+                  </td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sale_order_no}</td>
                   <td style={{ fontWeight: 600 }}>{r.space_no}</td>
                   <td>{r.space_type}</td>
@@ -271,7 +309,7 @@ export default function SaleRecordTable({
                 </tr>
               </thead>
               <tbody>
-                {records.map(r => (
+                {records.filter(r => selected.has(r.record_id)).map(r => (
                   <tr key={r.record_id}>
                     <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sale_order_no}</td>
                     <td style={{ fontWeight: 600 }}>{r.space_no}</td>

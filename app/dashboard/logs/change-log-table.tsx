@@ -32,6 +32,26 @@ export default function ChangeLogTable({
   const [printDoc, setPrintDoc] = useState<'apply' | 'plate'>('apply')
   const [mounted, setMounted] = useState(false)
   const [printList, setPrintList] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  const allChecked = logs.length > 0 && selected.size === logs.length
+  function toggleAll() {
+    setSelected(allChecked ? new Set() : new Set(logs.map(l => l.log_id)))
+  }
+  function toggleOne(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function handlePrintSelected() {
+    if (selected.size === 0) {
+      alert('请先勾选要打印的记录')
+      return
+    }
+    setPrintList(true)
+  }
 
   // ESC 关闭抽屉 / 打印预览
   useEffect(() => {
@@ -107,16 +127,24 @@ export default function ChangeLogTable({
             清除
           </Link>
         )}
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{ fontSize: 13, marginLeft: 8 }}
+          onClick={toggleAll}
+        >
+          {allChecked ? '取消全选' : '全选'}
+        </button>
         <span className="text-sm text-gray" style={{ marginLeft: 8 }}>
-          共 {logs.length} 条
+          共 {logs.length} 条，已选 {selected.size} 条
         </span>
         <button
           type="button"
           className="btn-secondary"
           style={{ fontSize: 13, marginLeft: 8 }}
-          onClick={() => setPrintList(true)}
+          onClick={handlePrintSelected}
         >
-          🖨️ 打印列表
+          🖨️ 打印勾选
         </button>
       </form>
 
@@ -126,6 +154,9 @@ export default function ChangeLogTable({
           <table>
             <thead>
               <tr>
+                <th style={{ width: 40 }}>
+                  <input type="checkbox" checked={allChecked} onChange={toggleAll} />
+                </th>
                 <th>时间</th>
                 <th>业主</th>
                 <th>原车位</th>
@@ -138,7 +169,7 @@ export default function ChangeLogTable({
             </thead>
             <tbody>
               {logs.length === 0 && (
-                <tr><td colSpan={8} className="text-center text-gray">暂无变更记录</td></tr>
+                <tr><td colSpan={9} className="text-center text-gray">暂无变更记录</td></tr>
               )}
               {logs.map(l => (
                 <tr
@@ -146,6 +177,13 @@ export default function ChangeLogTable({
                   onClick={() => setDetail(l)}
                   style={{ cursor: 'pointer' }}
                 >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(l.log_id)}
+                      onChange={() => toggleOne(l.log_id)}
+                    />
+                  </td>
                   <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
                   <td>{l.owner_name}</td>
                   <td style={{ fontWeight: 600 }}>{l.old_space_no}</td>
@@ -267,7 +305,7 @@ export default function ChangeLogTable({
                 </tr>
               </thead>
               <tbody>
-                {logs.map(l => (
+                {logs.filter(l => selected.has(l.log_id)).map(l => (
                   <tr key={l.log_id}>
                     <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{fmtTime(l.changed_at)}</td>
                     <td>{l.owner_name}</td>
