@@ -887,6 +887,46 @@ export async function uploadGarageMap(input: UploadGarageMapInput) {
   })
 }
 
+// ==================== 车位牌照片上传后回写 ====================
+export interface MarkSpacePlateInput {
+  record_id: number
+  image_url: string
+}
+
+// 上传车位牌照片成功后，将图片地址写入销售记录，并把处理状态置为「已完成」
+export async function markSpacePlateUploaded(input: MarkSpacePlateInput) {
+  const recordId = Number(input.record_id)
+  if (!recordId || recordId <= 0) throw new Error('销售记录 ID 不合法')
+  const url = (input.image_url || '').trim()
+  if (!url) throw new Error('图片地址无效')
+
+  return withTransaction(async (client) => {
+    const exist = await client.query(`SELECT record_id, preview_url FROM parking_sales_records WHERE record_id = $1`, [recordId])
+    if (!exist.rowCount || exist.rowCount === 0) {
+      throw new Error('销售记录不存在')
+    }
+    // 若已存在旧图，替换后删除旧对象
+    const oldUrl: string | null = exist.rows[0].preview_url
+    if (oldUrl) {
+      try {
+        const { keyFromUrl, deleteFromR2 } = await import('./object-storage')
+        const oldKey = keyFromUrl(oldUrl)
+        if (oldKey) await deleteFromR2(oldKey)
+      } catch {
+        // 删除旧图失败不阻断主流程
+      }
+    }
+
+    await client.query(
+      `UPDATE parking_sales_records
+       SET preview_url = $1, process_result = '已完成', updated_at = NOW()
+       WHERE record_id = $2`,
+      [url, recordId]
+    )
+    return { ok: true, record_id: recordId }
+  })
+}
+
 // ==================== 车位销售：按车位号查询 ====================
 // 返回车位详情（含状态），供销售页面先查询再填写
 export async function lookupSpace(spaceId: string): Promise<{

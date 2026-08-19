@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { ParkingSaleRecord } from '@/lib/types'
 import DocPrintPanel from '@/app/dashboard/components/doc-print'
 import type { SaleOrder } from '@/app/dashboard/components/doc-print'
+import SpacePlateUploader from '@/app/dashboard/records/space-plate-uploader'
 
 // 兼容 Date / string 的时间格式化
 function fmtTime(v: any, len = 16): string {
@@ -32,6 +33,7 @@ export default function SaleRecordTable({
   const [mounted, setMounted] = useState(false)
   const [printList, setPrintList] = useState(false)
   const [selected, setSelected] = useState<Set<string | number>>(new Set())
+  const [plateTarget, setPlateTarget] = useState<ParkingSaleRecord | null>(null)
 
   const allChecked = records.length > 0 && selected.size === records.length
   function toggleAll() {
@@ -59,6 +61,7 @@ export default function SaleRecordTable({
       if (e.key === 'Escape') {
         setDetail(null)
         setPrintOrder(null)
+        setPlateTarget(null)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -217,10 +220,19 @@ export default function SaleRecordTable({
                     <button
                       type="button"
                       className="btn-secondary"
-                      style={{ padding: '2px 8px', fontSize: 12 }}
+                      style={{ padding: '2px 8px', fontSize: 12, marginRight: 6 }}
                       onClick={(e) => { e.stopPropagation(); setDetail(r) }}
                     >
                       查看详情
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ padding: '2px 8px', fontSize: 12, opacity: r.process_result === '已完成' ? 0.5 : 1, cursor: r.process_result === '已完成' ? 'not-allowed' : 'pointer' }}
+                      disabled={r.process_result === '已完成'}
+                      onClick={(e) => { e.stopPropagation(); if (r.process_result !== '已完成') setPlateTarget(r) }}
+                    >
+                      上传车位牌照片
                     </button>
                   </td>
                 </tr>
@@ -264,6 +276,28 @@ export default function SaleRecordTable({
               >
                 🖨️ 补打销售单
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 上传车位牌照片弹窗 */}
+      {plateTarget && (
+        <div className="drawer-mask" onClick={() => setPlateTarget(null)}>
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="drawer-head">
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>上传车位牌照片 · 车位 {plateTarget.space_no}</h3>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ fontSize: 13 }}
+                onClick={() => setPlateTarget(null)}
+              >
+                ✕ 关闭
+              </button>
+            </div>
+            <div className="drawer-body">
+              <SpacePlateUploader recordId={plateTarget.record_id} spaceNo={plateTarget.space_no} />
             </div>
           </div>
         </div>
