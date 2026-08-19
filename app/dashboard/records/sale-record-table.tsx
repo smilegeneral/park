@@ -427,15 +427,14 @@ export default function SaleRecordTable({
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
-                <tr style={{ fontWeight: 700, borderTop: '2px solid #000' }}>
-                  <td colSpan={4} style={{ textAlign: 'right' }}>合计</td>
-                  <td>车位 {printSelected.length} 个</td>
-                  <td colSpan={2} style={{ fontWeight: 700 }}>¥{printAmount.toLocaleString()}</td>
-                  <td></td>
-                </tr>
-              </tfoot>
             </table>
+            {/* 统计行：放在表格之外，仅最后一页显示（tfoot 会在每页重复） */}
+            <div style={{ display: 'flex', fontWeight: 700, borderTop: '2px solid #000', paddingTop: 6, marginTop: 2 }}>
+              <div style={{ flex: 4, textAlign: 'right' }}>合计</div>
+              <div style={{ flex: 1 }}>车位 {printSelected.length} 个</div>
+              <div style={{ flex: 2, fontWeight: 700 }}>¥{printAmount.toLocaleString()}</div>
+              <div style={{ flex: 1 }}></div>
+            </div>
           </div>
         </div>,
         document.body,
