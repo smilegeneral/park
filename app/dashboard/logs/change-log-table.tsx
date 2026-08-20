@@ -95,21 +95,30 @@ export default function ChangeLogTable({
         : { key, dir: 'asc' }
     )
   }
+  // 将值转为可比较的基准：日期→时间戳，纯数字/数字字符串→数值，其余→字符串
+  function toComparable(v: any): { type: 'num' | 'str'; num: number; str: string } {
+    // 日期
+    if (v instanceof Date) return { type: 'num', num: v.getTime(), str: '' }
+    const t = Date.parse(v)
+    if (!isNaN(t) && typeof v === 'string' && /\d{4}-\d{2}-\d{2}/.test(v)) {
+      return { type: 'num', num: t, str: '' }
+    }
+    // 数字或数字字符串
+    const n = Number(v)
+    if (!isNaN(n) && v !== '' && v !== null && v !== undefined && String(v).trim() !== '') {
+      return { type: 'num', num: n, str: '' }
+    }
+    return { type: 'str', num: 0, str: String(v ?? '') }
+  }
   function sortLogs(list: SpaceChangeLog[]) {
     if (!sort.key) return list
     const dir = sort.dir === 'asc' ? 1 : -1
     const key = sort.key
     return [...list].sort((a, b) => {
-      const va = a[key] as any
-      const vb = b[key] as any
-      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
-      // 日期字段按时间戳比较（pg timestamptz 返回 Date 对象，直接 localeCompare 会乱序）
-      const ta = Date.parse(va as any)
-      const tb = Date.parse(vb as any)
-      if (!isNaN(ta) && !isNaN(tb)) return (ta - tb) * dir
-      const sa = String(va ?? '')
-      const sb = String(vb ?? '')
-      return sa.localeCompare(sb, 'zh') * dir
+      const ca = toComparable(a[key])
+      const cb = toComparable(b[key])
+      if (ca.type === 'num' && cb.type === 'num') return (ca.num - cb.num) * dir
+      return ca.str.localeCompare(cb.str, 'zh') * dir
     })
   }
   const viewLogs = sortLogs(logs)
