@@ -302,8 +302,7 @@ export default function SaleRecordTable({
                     <button
                       type="button"
                       className="btn-primary"
-                      style={{ padding: '2px 8px', fontSize: 12, opacity: r.process_result === '已完成' ? 0.5 : 1, cursor: r.process_result === '已完成' ? 'not-allowed' : 'pointer' }}
-                      disabled={r.process_result === '已完成'}
+                      style={{ padding: '2px 8px', fontSize: 12, opacity: r.process_result === '已完成' ? 0.5 : 1, cursor: 'pointer' }}
                       onClick={(e) => {
                         e.stopPropagation()
                         if (r.process_result === '已完成') setViewTarget(r)
