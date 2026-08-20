@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     }
 
     const ext = (fileType.split('/')[1] || 'png').replace('jpeg', 'jpg')
-    const key = `garage-maps/${zone}.${ext}`
+    // 每次上传使用唯一 key（含时间戳），避免覆盖同一 URL 导致 CDN/浏览器缓存旧图
+    const key = `garage-maps/${zone}-${Date.now()}.${ext}`
     const uploadUrl = await getPresignedPutUrl(key, fileType)
     // 直传成功后浏览器将使用此公开 URL 写库
     const publicUrl = getPublicUrl(key)
