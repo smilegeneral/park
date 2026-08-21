@@ -10,9 +10,10 @@ const ROLE_GUEST = 0
 const ROLE_SALE = 1
 const ROLE_ADMIN = 2
 
-// 统一的未授权返回结构（供调用方判断）
-function unauthorized(action: string) {
-  return { ok: false, error: `无权执行操作：${action}（权限不足）` } as const
+// 统一的未授权处理：直接抛出，使 requireRole 失败分支在类型上不可达，
+// 避免污染各 Action 的成功返回类型（调用方均以 try/catch 捕获）。
+function unauthorized(action: string): never {
+  throw new Error(`无权执行操作：${action}（权限不足）`)
 }
 
 // 密码强度策略：至少 8 位，含字母和数字（防止弱口令）
