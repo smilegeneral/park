@@ -1,6 +1,8 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
-import type { Role } from './types'
+
+// 与 types/next-auth.d.ts 中 Session.user.role?: number 保持一致
+type Role = number
 
 export type SessionUser = {
   id: number
