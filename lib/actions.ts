@@ -2,7 +2,25 @@
 import { withTransaction } from './db'
 import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, getUnsoldSpaces } from './queries'
 import { auth } from './auth'
+import { requireRole } from './guard'
 import type { ParkingSpace } from './types'
+
+// 角色等级常量（与 lib/types 保持一致）：0=访客 1=销售员 2=管理员 3=超级管理员
+const ROLE_GUEST = 0
+const ROLE_SALE = 1
+const ROLE_ADMIN = 2
+
+// 统一的未授权返回结构（供调用方判断）
+function unauthorized(action: string) {
+  return { ok: false, error: `无权执行操作：${action}（权限不足）` } as const
+}
+
+// 密码强度策略：至少 8 位，含字母和数字（防止弱口令）
+function validatePasswordStrength(pwd: string): string | null {
+  if (!pwd || pwd.length < 8) return '密码长度至少 8 位'
+  if (!/[a-zA-Z]/.test(pwd) || !/\d/.test(pwd)) return '密码须同时包含字母和数字'
+  return null
+}
 
 // HOUSEKEY 格式: building_no-unit_no-room_no
 function parseHouseKey(houseKey: string) {
@@ -29,6 +47,7 @@ export interface BookSpaceInput {
 
 // 未售车位可预订（记录预订人/电话/房号），用于预留给客户
 export async function bookSpace(input: BookSpaceInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('预订车位')
   return withTransaction(async (client) => {
     // 乐观锁：只有"未售"才能预订，防止并发超卖
     const res = await client.query(
@@ -49,6 +68,7 @@ export async function bookSpace(input: BookSpaceInput) {
 
 // ==================== 解除预订 ====================
 export async function cancelBooking(spaceId: string) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('解除预订')
   return withTransaction(async (client) => {
     const res = await client.query(
       `UPDATE parking_spaces
@@ -79,6 +99,7 @@ export interface RetailSaleInput {
 }
 
 export async function confirmRetailSale(input: RetailSaleInput, _operator: string) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('零售销售确认')
   return withTransaction(async (client) => {
     // 1. 检查车位状态（必须是零售锁定）
     const spaceRes = await client.query(
@@ -230,6 +251,7 @@ export interface SwapInput {
 }
 
 export async function swapSpace(input: SwapInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('车位调换')
   try {
     return await withTransaction(async (client) => {
     const oldS = await client.query(
@@ -349,6 +371,7 @@ export interface GroupBuyInput {
 }
 
 export async function createGroupBuy(input: GroupBuyInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('创建团购')
   return withTransaction(async (client) => {
     const comp = await client.query(
       `SELECT * FROM group_buy_company WHERE company_id = $1`,
@@ -395,6 +418,7 @@ export interface GroupBuyPurchaseInput {
 }
 
 export async function createGroupBuyPurchase(input: GroupBuyPurchaseInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('团购认购')
   return withTransaction(async (client) => {
     // 1. 写入购买记录
     const purRes = await client.query(
@@ -494,6 +518,7 @@ export interface GroupSwapInput {
 }
 
 export async function swapGroupBuySpace(input: GroupSwapInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('团购车位调换')
   return withTransaction(async (client) => {
     const fromRes = await client.query(
       `SELECT * FROM parking_spaces WHERE space_id = $1`,
@@ -609,6 +634,7 @@ export interface GroupVerifyInput {
 }
 
 export async function verifyGroupBuy(input: GroupVerifyInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('团购核销')
   return withTransaction(async (client) => {
     const spaceRes = await client.query(
       `SELECT * FROM parking_spaces WHERE space_id = $1`,
@@ -697,6 +723,7 @@ export interface UpdateOwnerInput {
 }
 
 export async function updateOwnerInfo(input: UpdateOwnerInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('变更业主信息')
   return withTransaction(async (client) => {
     const exist = await client.query(
       `SELECT * FROM owner_info WHERE house_key = $1`,
@@ -759,6 +786,7 @@ export interface CreateUserInput {
 
 // 新增用户
 export async function createUser(input: CreateUserInput) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('新增用户')
   return withTransaction(async (client) => {
     const exist = await client.query(`SELECT 1 FROM admin_user WHERE username = $1`, [input.username])
     if (exist.rowCount && exist.rowCount > 0) throw new Error('用户名已存在')
@@ -776,6 +804,7 @@ export async function createUser(input: CreateUserInput) {
 
 // 修改用户角色与权限
 export async function updateUserRole(input: { id: number; role: number; permissions: string[]; display_name?: string }) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('修改用户角色')
   return withTransaction(async (client) => {
     const perms = input.role >= 2 ? '[]' : JSON.stringify(input.permissions)
     await client.query(
@@ -789,6 +818,7 @@ export async function updateUserRole(input: { id: number; role: number; permissi
 
 // ==================== 打印模板管理 ====================
 export async function savePrintTemplate(input: { id?: number; name: string; type: string; content: string }) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('保存打印模板')
   return withTransaction(async (client) => {
     if (input.id) {
       const r = await client.query(
@@ -807,6 +837,7 @@ export async function savePrintTemplate(input: { id?: number; name: string; type
 }
 
 export async function deletePrintTemplate(id: number) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('删除打印模板')
   return withTransaction(async (client) => {
     await client.query(`DELETE FROM print_templates WHERE id=$1`, [id])
     return { ok: true }
@@ -815,6 +846,9 @@ export async function deletePrintTemplate(id: number) {
 
 // 重置他人密码
 export async function resetUserPassword(input: { id: number; newPassword: string }) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('重置用户密码')
+  const strengthErr = validatePasswordStrength(input.newPassword)
+  if (strengthErr) return { ok: false, error: strengthErr } as const
   return withTransaction(async (client) => {
     const hash = await bcrypt.hash(input.newPassword, 10)
     const r = await client.query(
@@ -828,6 +862,8 @@ export async function resetUserPassword(input: { id: number; newPassword: string
 
 // 当前用户修改自己的密码
 export async function changeMyPassword(input: { userId: number; oldPassword: string; newPassword: string }) {
+  const strengthErr = validatePasswordStrength(input.newPassword)
+  if (strengthErr) throw new Error(strengthErr)
   return withTransaction(async (client) => {
     const { rows } = await client.query(
       `SELECT password_hash FROM admin_user WHERE id = $1`,
@@ -857,6 +893,7 @@ export interface UploadGarageMapInput {
 const GARAGE_MAP_ZONES = ['A区', 'B区', 'C区', 'D1区', 'D2区', 'E区']
 
 export async function uploadGarageMap(input: UploadGarageMapInput) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('上传车库分布图')
   if (!GARAGE_MAP_ZONES.includes(input.zone)) {
     throw new Error('车库分区不合法，仅支持 A区/B区/C区/D1区/D2区/E区')
   }
@@ -895,6 +932,7 @@ export interface MarkSpacePlateInput {
 
 // 上传车位牌照片成功后，将图片地址写入销售记录，并把处理状态置为「已完成」
 export async function markSpacePlateUploaded(input: MarkSpacePlateInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('回写车位牌照片')
   const recordId = Number(input.record_id)
   if (!recordId || recordId <= 0) throw new Error('销售记录 ID 不合法')
   const url = (input.image_url || '').trim()
@@ -929,6 +967,7 @@ export async function markSpacePlateUploaded(input: MarkSpacePlateInput) {
 
 // 上传车位牌照片成功后，将图片地址写入车位变更记录，并把处理状态置为「已完成」
 export async function markChangeLogPlateUploaded(input: { log_id: number; image_url: string }) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('回写调换记录车位牌照片')
   const logId = Number(input.log_id)
   if (!logId || logId <= 0) throw new Error('变更记录 ID 不合法')
   const url = (input.image_url || '').trim()
@@ -1012,6 +1051,7 @@ export interface AddSpaceInput {
 
 // 在车位台账中新增一条记录，初始状态=未售
 export async function addParkingSpace(input: AddSpaceInput) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('新增车位')
   const space_id = (input.space_id || '').trim()
   if (!space_id) throw new Error('请输入车位号')
 
@@ -1061,6 +1101,7 @@ export async function addParkingSpace(input: AddSpaceInput) {
 // ==================== 取消车位 ====================
 // 仅允许将"未售"车位置为"取消"，取消后不可销售
 export async function cancelParkingSpace(spaceId: string, remarks?: string, changeOrderNo?: string, operator?: string) {
+  if (!await requireRole(ROLE_SALE)) return unauthorized('取消车位')
   const sid = (spaceId || '').trim()
   if (!sid) throw new Error('请选择要取消的车位')
 

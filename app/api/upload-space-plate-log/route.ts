@@ -10,10 +10,11 @@ const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
 // 仅签发 presigned PUT URL，不接收文件体（绕过 Vercel ~4.5MB 请求体限制）
 export async function POST(req: NextRequest) {
   try {
+    // 权限校验：销售员(role>=1)即可上传调换记录车位牌照片
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ ok: false, error: '未登录' }, { status: 401 })
-    const role = (session.user as any)?.role ?? 1
-    if (role < 2) return NextResponse.json({ ok: false, error: '无权限' }, { status: 403 })
+    const role = (session.user as any)?.role ?? 0
+    if (role < 1) return NextResponse.json({ ok: false, error: '无权限' }, { status: 403 })
 
     const { logId, fileType, fileSize } = await req.json()
     const lid = Number(logId)

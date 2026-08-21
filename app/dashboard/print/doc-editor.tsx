@@ -6,6 +6,46 @@ import {
   type DocType,
 } from '@/app/dashboard/components/doc-templates'
 
+// 打印模板允许的标签白名单（防止 dangerouslySetInnerHTML 触发 XSS：
+// 业主数据/编辑内容中的 <script>、on* 事件、javascript: 协议等都会被剥离）
+const ALLOWED_TAGS = new Set([
+  'P', 'DIV', 'SPAN', 'BR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH',
+  'COLGROUP', 'COL', 'H2', 'H1', 'H3', 'B', 'I', 'U', 'UL', 'OL', 'LI', 'STYLE',
+])
+const ALLOWED_ATTRS = new Set(['class', 'style', 'colspan', 'rowspan', 'width', 'align'])
+
+// 轻量 DOM 净化（仅客户端运行，具备完整 DOM API）
+function sanitizeHtml(dirty: string): string {
+  if (typeof window === 'undefined') return dirty
+  const doc = new DOMParser().parseFromString(dirty, 'text/html')
+
+  const walk = (node: Element) => {
+    // 倒序遍历子节点，便于安全删除
+    const children = Array.from(node.children)
+    for (const child of children) {
+      const tag = child.tagName.toUpperCase()
+      if (!ALLOWED_TAGS.has(tag)) {
+        child.remove()
+        continue
+      }
+      // 剥离危险属性（事件处理器、javascript: 协议、非白名单属性）
+      for (const attr of Array.from(child.attributes)) {
+        const name = attr.name.toLowerCase()
+        const val = attr.value.toLowerCase()
+        const dangerous =
+          name.startsWith('on') ||
+          !ALLOWED_ATTRS.has(name) ||
+          val.includes('javascript:') ||
+          val.includes('data:')
+        if (dangerous) child.removeAttribute(attr.name)
+      }
+      walk(child)
+    }
+  }
+  walk(doc.body)
+  return doc.body.innerHTML
+}
+
 // ============================================================
 //  可视化单据编辑器（类似 Word）
 //  - contentEditable 编辑区 + 富文本工具栏
@@ -195,7 +235,8 @@ export default function DocEditor({
     }
     // 移除未替换的占位符高亮样式，仅保留文本
     out = out.replace(/<span class="field-token"[^>]*>\{\{([^}]+)\}\}<\/span>/g, '{{$1}}')
-    setPreviewHtml(out)
+    // 净化后渲染，防止业主数据/编辑内容触发的 XSS
+    setPreviewHtml(sanitizeHtml(out))
     setTimeout(() => window.print(), 120)
   }
 
