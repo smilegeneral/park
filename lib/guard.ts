@@ -13,12 +13,15 @@ export type SessionUser = {
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return null
+  const rawId = session?.user?.id
+  if (!rawId) return null
+  const id = Number(rawId)
+  if (!Number.isFinite(id)) return null
   return {
-    id: session.user.id,
-    username: session.user.username,
-    role: session.user.role,
-    name: session.user.name,
+    id,
+    username: session.user.username || session.user.name || '',
+    role: (session.user.role ?? 0) as Role,
+    name: session.user.name || session.user.username || '',
   }
 }
 

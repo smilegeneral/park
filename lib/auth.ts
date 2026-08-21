@@ -60,8 +60,10 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      // 登录成功后把 role / 权限 写入 JWT
+      // 登录成功后把角色/权限/身份 写入 JWT
       if (user) {
+        token.id = (user as { id?: string }).id
+        token.username = (user as { username?: string }).username ?? (user as { name?: string }).name
         token.role = (user as { role?: number }).role
         token.display_name = (user as { display_name?: string }).display_name
         token.permissions = (user as { permissions?: string[] }).permissions
@@ -69,8 +71,10 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      // 从 JWT 把 role / 权限 读到 session.user
+      // 从 JWT 把角色/权限/身份 读到 session.user
       if (session.user) {
+        ;(session.user as { id?: string }).id = token.id
+        ;(session.user as { username?: string }).username = token.username
         ;(session.user as { role?: number }).role = token.role as number | undefined
         ;(session.user as { display_name?: string }).display_name = token.display_name as string | undefined
         ;(session.user as { permissions?: string[] }).permissions = token.permissions as string[] | undefined
