@@ -219,6 +219,9 @@ export default function ChangeLogTable({
                 <th onClick={() => toggleSort('swap_type')} style={{ cursor: 'pointer' }}>
                   类型{sort.key === 'swap_type' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
+                <th onClick={() => toggleSort('change_reason')} style={{ cursor: 'pointer' }}>
+                  调换原因{sort.key === 'change_reason' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
                 <th onClick={() => toggleSort('process_result')} style={{ cursor: 'pointer' }}>
                   状态{sort.key === 'process_result' ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
@@ -227,7 +230,7 @@ export default function ChangeLogTable({
             </thead>
             <tbody>
               {logs.length === 0 && (
-                <tr><td colSpan={10} className="text-center text-gray">暂无变更记录</td></tr>
+                <tr><td colSpan={11} className="text-center text-gray">暂无变更记录</td></tr>
               )}
               {viewLogs.map(l => (
                 <tr
@@ -254,6 +257,9 @@ export default function ChangeLogTable({
                     <span className={`badge ${l.swap_type === '加钱换车位' ? 'badge-orange' : 'badge-blue'}`}>
                       {l.swap_type}
                     </span>
+                  </td>
+                  <td style={{ fontSize: 11, color: '#555', maxWidth: 180, wordBreak: 'break-all', whiteSpace: 'normal' }}>
+                    {l.change_reason || '—'}
                   </td>
                   <td>
                     <span className={`badge ${l.process_result === '已完成' ? 'badge-green' : 'badge-gray'}`}>
@@ -425,6 +431,7 @@ export default function ChangeLogTable({
                   <th>新车位</th>
                   <th>新房号</th>
                   <th>类型</th>
+                  <th style={{ fontSize: 11 }}>调换原因</th>
                   <th>状态</th>
                 </tr>
               </thead>
@@ -438,6 +445,7 @@ export default function ChangeLogTable({
                     <td style={{ fontWeight: 600, color: '#1677ff' }}>{l.new_space_no}</td>
                     <td>{l.new_house_key || '—'}</td>
                     <td>{l.swap_type}</td>
+                    <td style={{ fontSize: 11, color: '#555', maxWidth: 180, wordBreak: 'break-all', whiteSpace: 'normal' }}>{l.change_reason || '—'}</td>
                     <td>{l.process_result}</td>
                   </tr>
                 ))}
