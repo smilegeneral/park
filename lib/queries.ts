@@ -325,6 +325,62 @@ export async function getSaleRecords(limit = 50): Promise<ParkingSaleRecord[]> {
   return rows as ParkingSaleRecord[]
 }
 
+// ---------- 单车位历史时间线：购买记录 + 调换记录，按时间顺序 ----------
+export interface SpaceHistoryItem {
+  kind: '购买' | '调换'          // 记录类型
+  time: string                  // 发生时间
+  title: string                 // 简要说明
+  detail: string                // 补充信息
+  raw: any                      // 原始行
+}
+
+export async function getSpaceHistory(spaceId: string): Promise<SpaceHistoryItem[]> {
+  const sid = (spaceId || '').trim()
+  if (!sid) return []
+  const items: SpaceHistoryItem[] = []
+
+  // 1) 购买记录：该车位号为 space_no 的销售记录
+  const saleRes = await pool.query(
+    `SELECT * FROM parking_sales_records
+     WHERE space_no = $1
+     ORDER BY sale_time DESC, created_at DESC`,
+    [sid]
+  )
+  for (const r of saleRes.rows as ParkingSaleRecord[]) {
+    const t = r.sale_time || r.created_at
+    items.push({
+      kind: '购买',
+      time: typeof t === 'string' ? t : (t ? String(t) : ''),
+      title: `销售单 ${r.sale_order_no || '-'}（${r.status || ''}）`,
+      detail: `业主：${r.owner_name || '-'}　房号：${r.house_key || '-'}　金额：¥${Number(r.amount || 0).toLocaleString()}　确认单：${r.confirmation_no || r.receipt_no || '-'}`,
+      raw: r,
+    })
+  }
+
+  // 2) 调换记录：该车位号作为旧车位（被换出）或新车位（被换入）
+  const swapRes = await pool.query(
+    `SELECT * FROM parking_space_change_log
+     WHERE old_space_no = $1 OR new_space_no = $1
+     ORDER BY changed_at DESC`,
+    [sid]
+  )
+  for (const r of swapRes.rows as SpaceChangeLog[]) {
+    const direction = r.old_space_no === sid ? '换出' : '换入'
+    const counter = r.old_space_no === sid ? r.new_space_no : r.old_space_no
+    items.push({
+      kind: '调换',
+      time: typeof r.changed_at === 'string' ? r.changed_at : (r.changed_at ? String(r.changed_at) : ''),
+      title: `${r.swap_type || '车位调换'}（${direction}，单号 ${r.swap_order_no || '-'}）`,
+      detail: `对方车位：${counter || '-'}　业主：${r.owner_name || '-'}　差价：¥${Number(r.price_difference || 0).toLocaleString()}　原因：${r.change_reason || '-'}　状态：${r.process_result || '-'}`,
+      raw: r,
+    })
+  }
+
+  // 按时间升序（旧 → 新）排列
+  items.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+  return items
+}
+
 // 模糊查询销售记录：车位号 / 房号 / 业主姓名 / 销售单号 任意匹配
 export async function searchSaleRecords(keyword?: string, limit = 500, year?: number): Promise<ParkingSaleRecord[]> {
   const kw = (keyword || '').trim()

@@ -1,7 +1,15 @@
-import { searchSpaces } from '@/lib/queries'
+import { searchSpaces, getSpaceHistory } from '@/lib/queries'
 import Link from 'next/link'
 import QueryForm from './query-form'
 import QueryActions from './query-actions'
+
+function fmtTime(t?: string | Date): string {
+  if (!t) return '-'
+  const d = typeof t === 'string' ? new Date(t) : t
+  if (isNaN(d.getTime())) return String(t)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 export default async function QueryPage({
   searchParams,
@@ -23,6 +31,9 @@ export default async function QueryPage({
   const results = hasFilter ? await searchSpaces(params) : []
   const totalCount = results.length
   const totalAmount = results.reduce((s, r) => s + Number(r.price || 0), 0)
+
+  // 若以车位号查询，额外拉取该车位按时间顺序的购买 + 调换记录
+  const spaceHistory = params.space_id.trim() ? await getSpaceHistory(params.space_id) : []
 
   return (
     <main className="print-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
@@ -89,6 +100,41 @@ export default async function QueryPage({
             </table>
           </div>
         </section>
+
+        {params.space_id.trim() && (
+          <section className="card print-area" style={{ marginTop: 16, padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', fontWeight: 600 }}>
+              车位「{params.space_id.trim()}」历史记录（按时间顺序）
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 120 }}>时间</th>
+                    <th style={{ width: 70 }}>类型</th>
+                    <th>说明</th>
+                    <th>明细</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spaceHistory.length === 0 && (
+                    <tr><td colSpan={4} className="text-center text-gray">该车位暂无购买 / 调换记录</td></tr>
+                  )}
+                  {spaceHistory.map((h, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontSize: 12, whiteSpace: 'nowrap', fontFamily: 'monospace' }}>{fmtTime(h.time as any)}</td>
+                      <td>
+                        <span className={`badge ${h.kind === '购买' ? 'badge-blue' : 'badge-orange'}`}>{h.kind}</span>
+                      </td>
+                      <td style={{ fontSize: 13 }}>{h.title}</td>
+                      <td style={{ fontSize: 12, color: '#555', maxWidth: 520, whiteSpace: 'normal', wordBreak: 'break-all' }}>{h.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
         </>
       )}
     </main>
