@@ -70,39 +70,8 @@ const sslConfig = tlsVerifyDisabled
     ? { ca }
     : { rejectUnauthorized: true }
 
-// 启动诊断（默认始终打印，便于生产环境排查数据库连接问题）
-{
-  const fragKeys = Object.keys(process.env).filter(k => /^AIVEN_CA_B64_\d+$/.test(k)).sort()
-  console.log('[db] AIVEN_URL set:', !!process.env.AIVEN_URL)
-  console.log('[db] tlsVerifyDisabled:', tlsVerifyDisabled)
-  console.log('[db] CA source:',
-    process.env.AIVEN_CA_B64 ? 'AIVEN_CA_B64'
-    : fragKeys.length ? `shards(${fragKeys.join(',')}, len=${fragKeys.map(k => (process.env[k] || '').length).join('+')})`
-    : process.env.AIVEN_CA ? 'AIVEN_CA'
-    : 'none(default node CA)')
-  console.log('[db] CA length:', ca ? ca.length : 0)
-  console.log('[db] ssl mode:', tlsVerifyDisabled ? 'no-verify' : ca ? 'ca-pinned' : 'node-default')
-}
-
-// 解析连接串并打印 user/host/密码长度（不打印明文密码），便于排查环境间不一致
-const rawUrl = process.env.AIVEN_URL || ''
-{
-  try {
-    const u = new URL(rawUrl)
-    const pw = u.password || ''
-    console.log('[db] conn user:', u.username || '(empty)')
-    console.log('[db] conn host:', u.hostname || '(empty)')
-    console.log('[db] conn port:', u.port || '(default)')
-    console.log('[db] conn db:', u.pathname.replace(/^\//, '') || '(empty)')
-    console.log('[db] conn password length:', pw.length)
-    console.log('[db] conn password prefix:', pw ? pw.slice(0, 6) + '…' + pw.slice(-4) : '(empty)')
-  } catch {
-    console.log('[db] conn parse failed, AIVEN_URL is not a valid URL')
-  }
-}
-
 const pool = new Pool({
-  connectionString: rawUrl.replace(
+  connectionString: (process.env.AIVEN_URL || '').replace(
     /[?&]sslmode=(verify-full|verify-ca|require|prefer)/,
     ''
   ),
