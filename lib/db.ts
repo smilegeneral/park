@@ -33,6 +33,7 @@ function normalizePem(raw: string): string {
 }
 
 function resolveCa(): string | undefined {
+  // 方式 1：单变量 AIVEN_CA_B64（Base64，适用于变量值无长度限制的平台）
   if (process.env.AIVEN_CA_B64) {
     try {
       return normalizePem(Buffer.from(process.env.AIVEN_CA_B64, 'base64').toString('utf8'))
@@ -40,7 +41,21 @@ function resolveCa(): string | undefined {
       // 解码失败则忽略，继续尝试其他方式
     }
   }
+  // 方式 2：分片变量 AIVEN_CA_B64_1 / _2 / _3 ...（规避 EdgeOne 等 1000 字符变量上限）
+  const fragKeys = Object.keys(process.env)
+    .filter(k => /^AIVEN_CA_B64_\d+$/.test(k))
+    .sort()
+  if (fragKeys.length > 0) {
+    const joined = fragKeys.map(k => process.env[k] || '').join('')
+    try {
+      return normalizePem(Buffer.from(joined, 'base64').toString('utf8'))
+    } catch {
+      // 解码失败则忽略
+    }
+  }
+  // 方式 3：环境变量 AIVEN_CA（多行 PEM 文本）
   if (process.env.AIVEN_CA) return normalizePem(process.env.AIVEN_CA)
+  // 方式 4：文件 ca.pem
   try {
     return normalizePem(readFileSync(join(process.cwd(), 'ca.pem'), 'utf8'))
   } catch {
