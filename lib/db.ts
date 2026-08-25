@@ -11,19 +11,31 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 // AIVEN_CA 提供方式（任意其一即可）：
-//   1) 环境变量 AIVEN_CA：直接粘贴完整 PEM 文本（推荐，构建期会写入 ca.pem 供运行时读取）
-//   2) 仓库/构建产物中的 ca.pem 文件：构建脚本把 AIVEN_CA 落盘后，运行时从此读取
+//   1) 环境变量 AIVEN_CA：PEM 文本。因部分平台（EdgeOne）的变量值不允许换行，
+//      请将其压成单行——把真实换行替换为字面量 \n 后填入（如 "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----"）。
+//      代码会自动把字面量 \n 还原为真实换行；若已是单行无 \n 的 PEM，也会规范化为多行。
+//   2) 仓库/构建产物中的 ca.pem 文件：构建脚本把 AIVEN_CA 落盘后，运行时从此读取。
 // 若两者皆无，则回退到 Node 内置根证书校验（rejectUnauthorized=true，仍防中间人）。
-// 注：EdgeOne Pages 等 Serverless 平台不支持手动上传文件到运行时，
-//     故通过构建期把 AIVEN_CA 写入 ca.pem，再于运行时读取文件来满足"文件读取"需求。
 const tlsVerifyDisabled =
   process.env.AIVEN_NO_VERIFY === '1' ||
   process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0'
 
+// 将单/多行 PEM 规范化为标准多行格式（每个 ----- 标记独立成行）
+function normalizePem(raw: string): string {
+  let s = raw.replace(/\\n/g, '\n') // 字面量 \n -> 真实换行
+  if (!s.includes('\n')) {
+    // 直接去掉真实换行的单行 PEM：在边界标记处补换行
+    s = s.replace(/(-----BEGIN CERTIFICATE-----)/g, '$1\n')
+    s = s.replace(/(-----END CERTIFICATE-----)/g, '\n$1\n')
+    s = s.replace(/(\n)+/g, '\n').trim() + '\n'
+  }
+  return s
+}
+
 function resolveCa(): string | undefined {
-  if (process.env.AIVEN_CA) return process.env.AIVEN_CA
+  if (process.env.AIVEN_CA) return normalizePem(process.env.AIVEN_CA)
   try {
-    return readFileSync(join(process.cwd(), 'ca.pem'), 'utf8')
+    return normalizePem(readFileSync(join(process.cwd(), 'ca.pem'), 'utf8'))
   } catch {
     return undefined
   }
