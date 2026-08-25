@@ -331,20 +331,32 @@ export interface SpaceHistoryItem {
   time: string                  // 发生时间
   title: string                 // 简要说明
   detail: string                // 补充信息
+  space: string                 // 关联车位号（多车位查询时用于区分）
   raw: any                      // 原始行
 }
 
+// 单个车位的历史记录（精确匹配）
 export async function getSpaceHistory(spaceId: string): Promise<SpaceHistoryItem[]> {
-  const sid = (spaceId || '').trim()
-  if (!sid) return []
+  return getSpaceHistories([spaceId])
+}
+
+// 多车位 / 模糊查询历史记录
+// patterns: 车位号关键字列表（支持逗号、空格、换行分隔），每个关键字按 ILIKE '%x%' 模糊匹配，
+// 可同时传入多个车位号，合并返回按时间升序排列的全部购买 + 调换记录。
+export async function getSpaceHistories(patterns: string[]): Promise<SpaceHistoryItem[]> {
+  const pats = (patterns || [])
+    .map(p => (p || '').trim())
+    .filter(Boolean)
+    .map(p => `%${p}%`)
+  if (pats.length === 0) return []
   const items: SpaceHistoryItem[] = []
 
-  // 1) 购买记录：该车位号为 space_no 的销售记录
+  // 1) 购买记录：space_no 命中任一关键字
   const saleRes = await pool.query(
     `SELECT * FROM parking_sales_records
-     WHERE space_no = $1
+     WHERE space_no ILIKE ANY($1)
      ORDER BY sale_time DESC, created_at DESC`,
-    [sid]
+    [pats]
   )
   for (const r of saleRes.rows as ParkingSaleRecord[]) {
     const t = r.sale_time || r.created_at
@@ -353,25 +365,26 @@ export async function getSpaceHistory(spaceId: string): Promise<SpaceHistoryItem
       time: typeof t === 'string' ? t : (t ? String(t) : ''),
       title: `销售单 ${r.sale_order_no || '-'}（${r.status || ''}）`,
       detail: `业主：${r.owner_name || '-'}　房号：${r.house_key || '-'}　金额：¥${Number(r.amount || 0).toLocaleString()}　确认单：${r.confirmation_no || r.receipt_no || '-'}`,
+      space: r.space_no || '-',
       raw: r,
     })
   }
 
-  // 2) 调换记录：该车位号作为旧车位（被换出）或新车位（被换入）
+  // 2) 调换记录：旧车位或新车位命中任一关键字
   const swapRes = await pool.query(
     `SELECT * FROM parking_space_change_log
-     WHERE old_space_no = $1 OR new_space_no = $1
+     WHERE old_space_no ILIKE ANY($1) OR new_space_no ILIKE ANY($1)
      ORDER BY changed_at DESC`,
-    [sid]
+    [pats]
   )
   for (const r of swapRes.rows as SpaceChangeLog[]) {
-    const direction = r.old_space_no === sid ? '换出' : '换入'
-    const counter = r.old_space_no === sid ? r.new_space_no : r.old_space_no
+    const counter = r.old_space_no === r.new_space_no ? r.old_space_no : `${r.old_space_no || '-'} → ${r.new_space_no || '-'}`
     items.push({
       kind: '调换',
       time: typeof r.changed_at === 'string' ? r.changed_at : (r.changed_at ? String(r.changed_at) : ''),
-      title: `${r.swap_type || '车位调换'}（${direction}，单号 ${r.swap_order_no || '-'}）`,
+      title: `${r.swap_type || '车位调换'}（单号 ${r.swap_order_no || '-'}）`,
       detail: `对方车位：${counter || '-'}　业主：${r.owner_name || '-'}　差价：¥${Number(r.price_difference || 0).toLocaleString()}　原因：${r.change_reason || '-'}　状态：${r.process_result || '-'}`,
+      space: `${r.old_space_no || '-'} / ${r.new_space_no || '-'}`,
       raw: r,
     })
   }

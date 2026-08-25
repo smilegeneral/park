@@ -32,8 +32,13 @@ export default async function QueryPage({
   const totalCount = results.length
   const totalAmount = results.reduce((s, r) => s + Number(r.price || 0), 0)
 
-  // 若以车位号查询，额外拉取该车位按时间顺序的购买 + 调换记录
-  const spaceHistory = params.space_id.trim() ? await getSpaceHistory(params.space_id) : []
+  // 若以车位号查询，额外拉取该（多）车位按时间顺序的购买 + 调换记录
+  // 支持逗号 / 空格 / 换行分隔多个车位号，且每个关键字模糊匹配（ILIKE）
+  const spaceIdPatterns = params.space_id
+    .split(/[\s,，、]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+  const spaceHistory = spaceIdPatterns.length ? await getSpaceHistories(spaceIdPatterns) : []
 
   return (
     <main className="print-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
@@ -101,10 +106,10 @@ export default async function QueryPage({
           </div>
         </section>
 
-        {params.space_id.trim() && (
+        {spaceIdPatterns.length > 0 && (
           <section className="card print-area" style={{ marginTop: 16, padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', fontWeight: 600 }}>
-              车位「{params.space_id.trim()}」历史记录（按时间顺序）
+              车位「{spaceIdPatterns.join('、')}」历史记录（按时间顺序，共 {spaceHistory.length} 条）
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table className="table">
@@ -112,13 +117,14 @@ export default async function QueryPage({
                   <tr>
                     <th style={{ width: 120 }}>时间</th>
                     <th style={{ width: 70 }}>类型</th>
+                    <th style={{ width: 130 }}>车位号</th>
                     <th>说明</th>
                     <th>明细</th>
                   </tr>
                 </thead>
                 <tbody>
                   {spaceHistory.length === 0 && (
-                    <tr><td colSpan={4} className="text-center text-gray">该车位暂无购买 / 调换记录</td></tr>
+                    <tr><td colSpan={5} className="text-center text-gray">该车位暂无购买 / 调换记录</td></tr>
                   )}
                   {spaceHistory.map((h, idx) => (
                     <tr key={idx}>
@@ -126,6 +132,7 @@ export default async function QueryPage({
                       <td>
                         <span className={`badge ${h.kind === '购买' ? 'badge-blue' : 'badge-orange'}`}>{h.kind}</span>
                       </td>
+                      <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{h.space}</td>
                       <td style={{ fontSize: 13 }}>{h.title}</td>
                       <td style={{ fontSize: 12, color: '#555', maxWidth: 520, whiteSpace: 'normal', wordBreak: 'break-all' }}>{h.detail}</td>
                     </tr>
