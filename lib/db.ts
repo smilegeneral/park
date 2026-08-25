@@ -70,8 +70,8 @@ const sslConfig = tlsVerifyDisabled
     ? { ca }
     : { rejectUnauthorized: true }
 
-// 启动诊断（仅在 EdgeOne 等环境排查问题时参考；生产可忽略）
-if (process.env.NODE_ENV !== 'production' || process.env.EDGEONE_DIAG === '1') {
+// 启动诊断（默认始终打印，便于生产环境排查数据库连接问题）
+{
   const fragKeys = Object.keys(process.env).filter(k => /^AIVEN_CA_B64_\d+$/.test(k)).sort()
   console.log('[db] AIVEN_URL set:', !!process.env.AIVEN_URL)
   console.log('[db] tlsVerifyDisabled:', tlsVerifyDisabled)
