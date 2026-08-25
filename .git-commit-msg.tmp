@@ -1,1 +1,1 @@
-feat: 车位历史记录支持多车位号与模糊查询
+fix: 补导入 getSpaceHistories 修复 Vercel 构建类型错误

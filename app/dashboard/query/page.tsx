@@ -1,4 +1,4 @@
-import { searchSpaces, getSpaceHistory } from '@/lib/queries'
+import { searchSpaces, getSpaceHistory, getSpaceHistories } from '@/lib/queries'
 import Link from 'next/link'
 import QueryForm from './query-form'
 import QueryActions from './query-actions'
