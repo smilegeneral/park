@@ -11,11 +11,11 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 // AIVEN_CA 提供方式（任意其一即可）：
-//   1) 环境变量 AIVEN_CA：PEM 文本。因部分平台（EdgeOne）的变量值不允许换行，
-//      请将其压成单行——把真实换行替换为字面量 \n 后填入（如 "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----"）。
-//      代码会自动把字面量 \n 还原为真实换行；若已是单行无 \n 的 PEM，也会规范化为多行。
-//   2) 仓库/构建产物中的 ca.pem 文件：构建脚本把 AIVEN_CA 落盘后，运行时从此读取。
-// 若两者皆无，则回退到 Node 内置根证书校验（rejectUnauthorized=true，仍防中间人）。
+//   1) 环境变量 AIVEN_CA：PEM 文本（多行）。
+//   2) 环境变量 AIVEN_CA_B64：PEM 的 Base64 编码（单行、无任何特殊字符，
+//      专为 EdgeOne 等"变量值禁止换行"的平台设计，避免粘贴证书时报错）。
+//   3) 仓库/构建产物中的 ca.pem 文件：构建脚本把 AIVEN_CA 落盘后，运行时从此读取。
+// 若三者皆无，则回退到 Node 内置根证书校验（rejectUnauthorized=true，仍防中间人）。
 const tlsVerifyDisabled =
   process.env.AIVEN_NO_VERIFY === '1' ||
   process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0'
@@ -33,6 +33,13 @@ function normalizePem(raw: string): string {
 }
 
 function resolveCa(): string | undefined {
+  if (process.env.AIVEN_CA_B64) {
+    try {
+      return normalizePem(Buffer.from(process.env.AIVEN_CA_B64, 'base64').toString('utf8'))
+    } catch {
+      // 解码失败则忽略，继续尝试其他方式
+    }
+  }
   if (process.env.AIVEN_CA) return normalizePem(process.env.AIVEN_CA)
   try {
     return normalizePem(readFileSync(join(process.cwd(), 'ca.pem'), 'utf8'))
