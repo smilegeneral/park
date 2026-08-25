@@ -70,6 +70,20 @@ const sslConfig = tlsVerifyDisabled
     ? { ca }
     : { rejectUnauthorized: true }
 
+// 启动诊断（仅在 EdgeOne 等环境排查问题时参考；生产可忽略）
+if (process.env.NODE_ENV !== 'production' || process.env.EDGEONE_DIAG === '1') {
+  const fragKeys = Object.keys(process.env).filter(k => /^AIVEN_CA_B64_\d+$/.test(k)).sort()
+  console.log('[db] AIVEN_URL set:', !!process.env.AIVEN_URL)
+  console.log('[db] tlsVerifyDisabled:', tlsVerifyDisabled)
+  console.log('[db] CA source:',
+    process.env.AIVEN_CA_B64 ? 'AIVEN_CA_B64'
+    : fragKeys.length ? `shards(${fragKeys.join(',')}, len=${fragKeys.map(k => (process.env[k] || '').length).join('+')})`
+    : process.env.AIVEN_CA ? 'AIVEN_CA'
+    : 'none(default node CA)')
+  console.log('[db] CA length:', ca ? ca.length : 0)
+  console.log('[db] ssl mode:', tlsVerifyDisabled ? 'no-verify' : ca ? 'ca-pinned' : 'node-default')
+}
+
 const pool = new Pool({
   connectionString: (process.env.AIVEN_URL || '').replace(
     /[?&]sslmode=(verify-full|verify-ca|require|prefer)/,

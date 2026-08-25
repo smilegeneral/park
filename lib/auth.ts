@@ -20,12 +20,20 @@ export const authOptions: NextAuthOptions = {
         }
 
         // 先查数据库有没有这个用户
-        const { rows } = await pool.query(
-          `SELECT id, username, password_hash, role
-           FROM public.admin_user  -- 显式指定public schema，避免连错库
-           WHERE username = $1`,
-          [credentials.username]
-        )
+        let rows: any[]
+        try {
+          const res = await pool.query(
+            `SELECT id, username, password_hash, role
+             FROM public.admin_user  -- 显式指定public schema，避免连错库
+             WHERE username = $1`,
+            [credentials.username]
+          )
+          rows = res.rows
+        } catch (err) {
+          // 把数据库错误暴露出来，避免被统一误判为“账号密码错误”
+          console.error('[auth] DB query failed:', (err as Error)?.message, (err as any)?.code)
+          throw new Error('数据库连接失败：' + ((err as Error)?.message || String(err)))
+        }
 
         if (rows.length === 0) {
           return null
