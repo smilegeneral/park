@@ -1,1 +1,7 @@
-fix: 补导入 getSpaceHistories 修复 Vercel 构建类型错误
+fix: 团购购买登记返回结构化错误信息，补充 lifecycle_log 建表脚本
+
+- createGroupBuyPurchase 捕获异常返回 {ok:false,error}，
+  避免生产环境把真实错误脱敏成通用 Server Components 错误
+- 权限校验一并纳入结构化返回
+- 新增 scripts/ensure-lifecycle-log.sql（幂等建表），
+  修复因 parking_space_lifecycle_log 表缺失导致提交失败的问题

@@ -81,7 +81,7 @@ export default function PurchasePanel({
     }
     setSaving(true)
     try {
-      await createGroupBuyPurchase({
+      const res: any = await createGroupBuyPurchase({
         company_name: finalCompanyName,
         department: department.trim(),
         contact_person: contact.trim(),
@@ -93,6 +93,10 @@ export default function PurchasePanel({
         remarks: remarks.trim(),
         operator: 'admin',
       })
+      if (res && res.ok === false) {
+        setMsg({ type: 'err', text: res.error || '登记失败' })
+        return
+      }
       setMsg({ type: 'ok', text: `登记成功，已锁定 ${selectedSpaces.length} 个车位` })
       setTimeout(() => {
         setOpen(false)

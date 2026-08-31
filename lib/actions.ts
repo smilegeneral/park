@@ -419,7 +419,20 @@ export interface GroupBuyPurchaseInput {
 }
 
 export async function createGroupBuyPurchase(input: GroupBuyPurchaseInput) {
-  if (!await requireRole(ROLE_SALE)) return unauthorized('团购认购')
+  // 业务失败（权限不足 / 车位已被占用 / SQL 异常）需要让用户看到具体原因，
+  // 若直接抛出，生产构建会把信息脱敏成通用错误，无法定位问题。
+  try {
+    if (!await requireRole(ROLE_SALE)) {
+      throw new Error('无权执行操作：团购认购（权限不足）')
+    }
+    return await createGroupBuyPurchaseInner(input)
+  } catch (e: any) {
+    console.error('[createGroupBuyPurchase] failed:', e)
+    return { ok: false as const, error: e?.message || '登记失败（未知错误）' }
+  }
+}
+
+async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
   return withTransaction(async (client) => {
     // 1. 写入购买记录
     const purRes = await client.query(
