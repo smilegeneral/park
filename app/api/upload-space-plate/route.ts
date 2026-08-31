@@ -1,40 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getPresignedPutUrl, getPublicUrl } from '@/lib/object-storage'
+import { saveBuffer, extFromMime } from '@/lib/local-storage'
 
-// 车位牌照片仅支持图片，单图上限 10MB（前端也会校验）
-const MAX_FILE_BYTES = 10 * 1024 * 1024
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
-
-// 仅签发 presigned PUT URL，不接收文件体（绕过 Vercel ~4.5MB 请求体限制）
+// 销售记录车位牌照片上传：接收文件，保存到应用服务器本地磁盘
 export async function POST(req: NextRequest) {
   try {
-    // 权限校验：销售员(role>=1)即可上传车位牌照片
     const session = await getServerSession(authOptions)
-    if (!session) return NextResponse.json({ ok: false, error: '未登录' }, { status: 401 })
-    const role = (session.user as any)?.role ?? 0
-    if (role < 1) return NextResponse.json({ ok: false, error: '无权限' }, { status: 403 })
-
-    const { recordId, fileType, fileSize } = await req.json()
-    const rid = Number(recordId)
-    if (!rid || rid <= 0) {
-      return NextResponse.json({ ok: false, error: '销售记录 ID 不合法' }, { status: 400 })
-    }
-    if (!ALLOWED_TYPES.includes(fileType)) {
-      return NextResponse.json({ ok: false, error: '仅支持 PNG/JPG/WEBP 图片' }, { status: 400 })
-    }
-    if (fileSize > MAX_FILE_BYTES) {
-      return NextResponse.json({ ok: false, error: '图片过大，请控制在 10MB 以内' }, { status: 400 })
+    if (!session?.user) {
+      return NextResponse.json({ ok: false, error: '未登录' }, { status: 401 })
     }
 
-    const ext = (fileType.split('/')[1] || 'png').replace('jpeg', 'jpg')
-    const key = `space-plates/${rid}.${ext}`
-    const uploadUrl = await getPresignedPutUrl(key, fileType)
-    const publicUrl = getPublicUrl(key)
+    const form = await req.formData()
+    const file = form.get('file') as File | null
+    const recordId = Number(form.get('recordId'))
 
-    return NextResponse.json({ ok: true, uploadUrl, publicUrl, key })
+    if (!file || !(file instanceof File)) {
+      return NextResponse.json({ ok: false, error: '缺少文件' }, { status: 400 })
+    }
+    if (!recordId) {
+      return NextResponse.json({ ok: false, error: '缺少记录ID' }, { status: 400 })
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const ext = extFromMime(file.type)
+    if (!ext) {
+      return NextResponse.json({ ok: false, error: '仅支持图片类型' }, { status: 400 })
+    }
+
+    const imageUrl = saveBuffer('space-plates', buffer, ext)
+
+    return NextResponse.json({ ok: true, imageUrl })
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || '获取上传地址失败' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: e?.message || '上传失败' }, { status: 500 })
   }
 }

@@ -70,16 +70,37 @@ const sslConfig = tlsVerifyDisabled
     ? { ca }
     : { rejectUnauthorized: true }
 
-const pool = new Pool({
-  connectionString: (process.env.AIVEN_URL || '').replace(
-    /[?&]sslmode=(verify-full|verify-ca|require|prefer)/,
-    ''
-  ),
-  ssl: sslConfig,
-  max: 1,
-  idleTimeoutMillis: 5000,
-  connectionTimeoutMillis: 10000,
-})
+// 用 new URL 解析连接串，提取显式参数构建 Pool。
+// 原因：pg 的 connectionString 解析对 URL 编码的密码（%40/%26）处理不稳，
+// 会导致 "client password must be a string" 而连接失败；显式参数可正确传入解码后的密码。
+function buildPoolConfig() {
+  const raw = process.env.AIVEN_URL || ''
+  try {
+    const u = new URL(raw.replace(/[?&]sslmode=(verify-full|verify-ca|require|prefer)/, ''))
+    return {
+      host: u.hostname,
+      port: u.port ? Number(u.port) : 5432,
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      database: u.pathname.replace(/^\//, '') || 'postgres',
+      ssl: sslConfig,
+      max: 1,
+      idleTimeoutMillis: 5000,
+      connectionTimeoutMillis: 10000,
+    }
+  } catch {
+    // 退化到连接串方式
+    return {
+      connectionString: raw.replace(/[?&]sslmode=(verify-full|verify-ca|require|prefer)/, ''),
+      ssl: sslConfig,
+      max: 1,
+      idleTimeoutMillis: 5000,
+      connectionTimeoutMillis: 10000,
+    }
+  }
+}
+
+const pool = new Pool(buildPoolConfig())
 
 // 事务助手：自动 BEGIN / COMMIT / ROLLBACK
 export async function withTransaction<T>(

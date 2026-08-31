@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createGroupBuyPurchase } from '@/lib/actions'
 import type { ParkingSpace } from '@/lib/types'
+import { GROUP_BUY_DEPARTMENTS } from '@/lib/types'
 
 // ============================================================
 //  团购公司购买登记
@@ -69,6 +70,10 @@ export default function PurchasePanel({
     const finalCompanyName = isNew ? newCompanyName.trim() : companies.find((c) => String(c.company_id) === companyId)?.company_name
     if (!finalCompanyName) {
       setMsg({ type: 'err', text: '请选择团购公司或输入新公司名称' })
+      return
+    }
+    if (!department.trim()) {
+      setMsg({ type: 'err', text: '请填写部门（可下拉选择或直接输入）' })
       return
     }
     if (selectedSpaces.length === 0) {
@@ -163,13 +168,20 @@ export default function PurchasePanel({
                   </>
                 )}
 
-                <label className="text-sm" style={lbl}>部门</label>
-                <select value={department} onChange={(e) => setDepartment(e.target.value)} style={sel}>
-                  <option value="">— 选择 / 留空 —</option>
-                  {deptOptions.map((d) => (
-                    <option key={d} value={d}>{d}</option>
+                <label className="text-sm" style={lbl}>部门 *</label>
+                {/* 既可下拉选择常用部门，也可直接手工输入 */}
+                <input
+                  list="department-options"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="可下拉选择或直接输入"
+                  style={inp}
+                />
+                <datalist id="department-options">
+                  {[...new Set([...GROUP_BUY_DEPARTMENTS, ...deptOptions])].map((d) => (
+                    <option key={d} value={d} />
                   ))}
-                </select>
+                </datalist>
 
                 <label className="text-sm" style={lbl}>联系人</label>
                 <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="联系人姓名" style={inp} />

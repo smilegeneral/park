@@ -24,32 +24,19 @@ export default function ChangeLogPlateUploader({
     setLoading(true)
     setMsg('')
     try {
-      const meta = await fetch('/api/upload-space-plate-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          logId,
-          fileType: file.type,
-          fileSize: file.size,
-        }),
-      })
+      // 1) 把文件直接 POST 到应用服务器，由服务端保存到本地磁盘
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('logId', String(logId))
+      const meta = await fetch('/api/upload-space-plate-log', { method: 'POST', body: fd })
       const metaRes = await meta.json()
-      if (!meta.ok || !metaRes.uploadUrl) {
-        throw new Error(metaRes.error || '获取上传地址失败')
-      }
-
-      const putRes = await fetch(metaRes.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      })
-      if (!putRes.ok) {
-        throw new Error(`直传 R2 失败（${putRes.status}）`)
+      if (!metaRes.ok || !metaRes.imageUrl) {
+        throw new Error(metaRes.error || '上传失败')
       }
 
       const res = await markChangeLogPlateUploaded({
         log_id: logId,
-        image_url: metaRes.publicUrl,
+        image_url: metaRes.imageUrl,
       })
       if (res?.ok) {
         setMsg('上传成功，状态已更新为已完成')

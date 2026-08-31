@@ -441,6 +441,21 @@ export async function getNextSwapOrderNo(): Promise<string> {
   return `BG${String(next).padStart(3, '0')}`
 }
 
+// 获取下一个团购车位调换单号: TG + 三位数字, 从 TG002 起累加
+export async function getNextGroupSwapOrderNo(): Promise<string> {
+  const { rows } = await pool.query(
+    `SELECT swap_order_no FROM parking_space_change_log
+     WHERE swap_order_no LIKE 'TG%'
+     ORDER BY swap_order_no DESC LIMIT 1`
+  )
+  let next = 2
+  if (rows.length > 0) {
+    const m = /TG(\d+)/.exec(rows[0].swap_order_no || '')
+    if (m) next = parseInt(m[1], 10) + 1
+  }
+  return `TG${String(next).padStart(3, '0')}`
+}
+
 // 获取下一个车位销售单号: S + 三位数字, 取库中 S 前缀最大序号 +1
 export async function getNextSaleOrderNo(): Promise<string> {
   const { rows } = await pool.query(

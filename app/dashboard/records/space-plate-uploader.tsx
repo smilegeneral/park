@@ -24,35 +24,20 @@ export default function SpacePlateUploader({
     setLoading(true)
     setMsg('')
     try {
-      // 1) 请求 presigned URL（请求体极小，绕过 Vercel 4.5MB 限制）
-      const meta = await fetch('/api/upload-space-plate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recordId,
-          fileType: file.type,
-          fileSize: file.size,
-        }),
-      })
+      // 1) 把文件直接 POST 到应用服务器，由服务端保存到本地磁盘
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('recordId', String(recordId))
+      const meta = await fetch('/api/upload-space-plate', { method: 'POST', body: fd })
       const metaRes = await meta.json()
-      if (!meta.ok || !metaRes.uploadUrl) {
-        throw new Error(metaRes.error || '获取上传地址失败')
+      if (!metaRes.ok || !metaRes.imageUrl) {
+        throw new Error(metaRes.error || '上传失败')
       }
 
-      // 2) 浏览器直接 PUT 文件到 R2（不经过 Vercel 函数体）
-      const putRes = await fetch(metaRes.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      })
-      if (!putRes.ok) {
-        throw new Error(`直传 R2 失败（${putRes.status}）`)
-      }
-
-      // 3) 回写销售记录：保存图片地址并把处理状态置为「已完成」
+      // 2) 回写销售记录：保存图片地址并把处理状态置为「已完成」
       const res = await markSpacePlateUploaded({
         record_id: recordId,
-        image_url: metaRes.publicUrl,
+        image_url: metaRes.imageUrl,
       })
       if (res?.ok) {
         setMsg('上传成功，状态已更新为已完成')

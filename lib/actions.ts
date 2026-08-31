@@ -1,6 +1,6 @@
 'use server'
 import { withTransaction } from './db'
-import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, getUnsoldSpaces } from './queries'
+import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, getUnsoldSpaces, getNextGroupSwapOrderNo } from './queries'
 import { auth } from './auth'
 import { requireRole } from './guard'
 import type { ParkingSpace } from './types'
@@ -433,6 +433,12 @@ export async function createGroupBuyPurchase(input: GroupBuyPurchaseInput) {
 }
 
 async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
+  // department 在库中 NOT NULL，这里提前校验非空，
+  // 避免把空值直接抛给数据库导致 500。部门允许手工输入任意值。
+  const dept = (input.department || '').trim()
+  if (!dept) {
+    throw new Error('请填写部门（可下拉选择或直接输入）')
+  }
   return withTransaction(async (client) => {
     // 1. 写入购买记录
     const purRes = await client.query(
@@ -442,7 +448,7 @@ async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING purchase_id`,
       [
-        input.company_name, input.department, input.contact_person, input.contact_phone,
+        input.company_name, dept, input.contact_person, input.contact_phone,
         input.space_ids.length, input.space_ids.join(','),
         input.amount, input.is_paid, input.invoice_type, input.remarks || '', input.operator,
       ]
@@ -497,7 +503,7 @@ async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
              updated_at = NOW()
          WHERE company_id = $9`,
         [
-          input.department, input.contact_person, input.contact_phone,
+          dept, input.contact_person, input.contact_phone,
           merged.join(','), newCount, newTotal,
           input.is_paid, input.invoice_type, cur.company_id,
         ]
@@ -510,7 +516,7 @@ async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
           space_list, total_price, is_paid, invoice_type, remarks, created_at, updated_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())`,
         [
-          input.company_name, input.department || '', input.contact_person || '',
+          input.company_name, dept, input.contact_person || '',
           input.contact_phone || '', input.space_ids.length, input.space_ids.join(','),
           input.amount, input.is_paid, input.invoice_type || '', input.remarks || '',
         ]
@@ -595,7 +601,7 @@ export async function swapGroupBuySpace(input: GroupSwapInput) {
     }
 
     // 写入车位调换记录表（parking_space_change_log）
-    const swapOrderNo = `GBSW-${Date.now()}`
+    const swapOrderNo = await getNextGroupSwapOrderNo()
     await client.query(
       `INSERT INTO parking_space_change_log
        (owner_name, phone, old_space_no, old_space_type, old_house_key, old_space_price,
@@ -915,12 +921,11 @@ export async function uploadGarageMap(input: UploadGarageMapInput) {
   if (!url) throw new Error('图片地址无效')
 
   return withTransaction(async (client) => {
-    // 先查旧图，替换后删除旧对象（释放 R2 空间）
+    // 先查旧图，替换后删除本地旧文件（释放磁盘空间）
     const old = await client.query(`SELECT image_url FROM garage_maps WHERE zone = $1`, [input.zone])
     if (old.rowCount && old.rowCount > 0 && old.rows[0].image_url) {
-      const { keyFromUrl, deleteFromR2 } = await import('./object-storage')
-      const oldKey = keyFromUrl(old.rows[0].image_url)
-      if (oldKey) await deleteFromR2(oldKey)
+      const { deleteByUrl } = await import('./local-storage')
+      deleteByUrl(old.rows[0].image_url)
     }
 
     // upsert：同一分区覆盖更新
@@ -957,13 +962,12 @@ export async function markSpacePlateUploaded(input: MarkSpacePlateInput) {
     if (!exist.rowCount || exist.rowCount === 0) {
       throw new Error('销售记录不存在')
     }
-    // 若已存在旧图，替换后删除旧对象
+    // 若已存在旧图，替换后删除本地旧文件
     const oldUrl: string | null = exist.rows[0].preview_url
     if (oldUrl) {
       try {
-        const { keyFromUrl, deleteFromR2 } = await import('./object-storage')
-        const oldKey = keyFromUrl(oldUrl)
-        if (oldKey) await deleteFromR2(oldKey)
+        const { deleteByUrl } = await import('./local-storage')
+        deleteByUrl(oldUrl)
       } catch {
         // 删除旧图失败不阻断主流程
       }
@@ -995,9 +999,8 @@ export async function markChangeLogPlateUploaded(input: { log_id: number; image_
     const oldUrl: string | null = exist.rows[0].preview_url
     if (oldUrl) {
       try {
-        const { keyFromUrl, deleteFromR2 } = await import('./object-storage')
-        const oldKey = keyFromUrl(oldUrl)
-        if (oldKey) await deleteFromR2(oldKey)
+        const { deleteByUrl } = await import('./local-storage')
+        deleteByUrl(oldUrl)
       } catch {
         // 删除旧图失败不阻断主流程
       }

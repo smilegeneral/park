@@ -30,6 +30,14 @@ function fmtDate(v: any): string {
   return `${y}-${m}-${day}`
 }
 
+// 金额原样输出：数据库 numeric 经 pg 以字符串返回，
+// 直接按其原始文本展示，不做 toFixed 等任何四舍五入/补零处理。
+function fmtAmount(v: any): string {
+  if (v == null || v === '') return ''
+  const s = String(v).trim()
+  return s ? `¥${s}` : ''
+}
+
 // ===================== 车位团购单 =====================
 export function PurchaseSlip({ p }: { p: GroupBuyPurchase }) {
   const orderNo = `TG${String(p.purchase_id).padStart(3, '0')}`
@@ -69,7 +77,7 @@ export function PurchaseSlip({ p }: { p: GroupBuyPurchase }) {
           </tr>
           <tr>
             <td style={cellHead}>价格</td>
-            <td style={cellVal}>{p.amount != null ? `¥${Number(p.amount).toFixed(0)}` : ''}</td>
+            <td style={cellVal}>{fmtAmount(p.amount)}</td>
             <td style={cellHead}>是否付款</td>
             <td style={cellVal}>{p.is_paid ? '是' : '否'}</td>
           </tr>
@@ -130,7 +138,7 @@ export function VerifySlip({ v }: { v: GroupBuyVerifyDetail }) {
             <td style={cellHead}>联系电话</td>
             <td style={cellVal}>{v.owner_phone || '-'}</td>
             <td style={cellHead}>销售金额</td>
-            <td style={cellVal}>{v.sale_amount != null ? `¥${Number(v.sale_amount).toFixed(0)}` : ''}</td>
+            <td style={cellVal}>{fmtAmount(v.sale_amount)}</td>
           </tr>
           <tr>
             <td style={cellHead}>车位确认单号</td>

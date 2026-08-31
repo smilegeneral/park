@@ -5,6 +5,16 @@
 //           owner_info_change_log / group_buy_verify_detail
 // ============================================================
 
+// 团购部门常用值：仅作为前端下拉/输入建议（部门支持手工输入任意值）。
+// 数据库侧仅要求非空，不再限定这三个值。
+export const GROUP_BUY_DEPARTMENTS = [
+  '莱山分公司',
+  '开发分公司',
+  '建设分公司',
+] as const
+
+export type GroupBuyDepartment = (typeof GROUP_BUY_DEPARTMENTS)[number]
+
 // ---------- 车位主表 parking_spaces ----------
 export interface ParkingSpace {
   space_id: string          // 车位编号，如 A-001, B-287

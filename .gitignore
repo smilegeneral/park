@@ -36,3 +36,11 @@ tmp-*.ts
 
 # vercel
 .vercel
+
+# local runtime artifacts (运行时产物，不入库)
+# 应用服务器本地磁盘存放的上传图片
+/data/
+dev.log
+dev.err
+*.log
+_v.js

@@ -34,6 +34,7 @@ export const authOptions: NextAuthOptions = {
           console.error('[auth] DB query failed:', (err as Error)?.message, (err as any)?.code)
           throw new Error('数据库连接失败：' + ((err as Error)?.message || String(err)))
         }
+        console.log('[auth] rows.length=', rows.length)
 
         if (rows.length === 0) {
           return null
@@ -43,6 +44,7 @@ export const authOptions: NextAuthOptions = {
           credentials.password,
           rows[0].password_hash
         )
+        console.log('[auth] isValid=', isValid)
 
         if (!isValid) return null
 
