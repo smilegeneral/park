@@ -10,9 +10,18 @@ import type {
   NotBoughtOwnerStat,
 } from '@/lib/types'
 
+// 金额格式化：按数据库返回的原始数值原样显示，不做任何四舍五入。
+// postgres 的 numeric 以字符串返回（如 "123456.78"）；若先转 Number 再
+// toLocaleString，会被限制为最多 3 位小数并四舍五入，还会引入浮点误差。
+// 这里直接按字符串处理：整数部分加千分位，小数部分原样保留。
 function fmtMoney(v: any): string {
-  const n = Number(v || 0)
-  return n ? `¥${n.toLocaleString()}` : '¥0'
+  const raw = (v === null || v === undefined ? '' : String(v)).trim()
+  if (!raw || /^0*(\.0*)?$/.test(raw)) return '¥0'
+  const neg = raw.startsWith('-')
+  const body = neg ? raw.slice(1) : raw
+  const [intPart, fracPart] = body.split('.')
+  const withSep = (intPart || '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return `¥${neg ? '-' : ''}${withSep}${fracPart ? '.' + fracPart : ''}`
 }
 
 function Card({
@@ -86,7 +95,7 @@ export default function ReportClient({
       '合计',
       zones.reduce((s, z) => s + Number(z.total), 0),
       zones.reduce((s, z) => s + Number(z.sold_count), 0),
-      zones.reduce((s, z) => s + Number(z.sold_amount), 0),
+      Number(summary.total_sold_amount),
       zones.reduce((s, z) => s + Number(z.unsold_count), 0),
       zones.reduce((s, z) => s + Number(z.unsold_sub), 0),
       zones.reduce((s, z) => s + Number(z.unsold_single), 0),
@@ -172,7 +181,8 @@ export default function ReportClient({
                   <td>合计</td>
                   <td>{zones.reduce((s, z) => s + Number(z.total), 0)}</td>
                   <td>{zones.reduce((s, z) => s + Number(z.sold_count), 0)}</td>
-                  <td>{fmtMoney(zones.reduce((s, z) => s + Number(z.sold_amount), 0))}</td>
+                  {/* 合计金额直接用 SQL 精确求和结果，避免 Number 浮点累加产生脏小数 */}
+                  <td>{fmtMoney(summary.total_sold_amount)}</td>
                   <td>{zones.reduce((s, z) => s + Number(z.unsold_count), 0)}</td>
                   <td>{zones.reduce((s, z) => s + Number(z.unsold_sub), 0)}</td>
                   <td>{zones.reduce((s, z) => s + Number(z.unsold_single), 0)}</td>
