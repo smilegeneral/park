@@ -15,6 +15,18 @@ export const GROUP_BUY_DEPARTMENTS = [
 
 export type GroupBuyDepartment = (typeof GROUP_BUY_DEPARTMENTS)[number]
 
+// 团购单号：TG + 三位数字（与购买记录 purchase_id 对应）。
+// 团购登记产生的车位变更单号直接沿用此号，不再使用 GBP-时间戳 这类长单号。
+export function groupBuyOrderNo(purchaseId: number | string): string {
+  return `TG${String(purchaseId).padStart(3, '0')}`
+}
+
+// 团购核销单号：GCV + 三位数字（与核销明细 verify_id 对应）。
+// 团购核销产生的车位变更单号沿用此号，不再使用 GBV-时间戳 这类长单号。
+export function groupBuyVerifyOrderNo(verifyId: number | string): string {
+  return `GCV${String(verifyId).padStart(3, '0')}`
+}
+
 // ---------- 车位主表 parking_spaces ----------
 export interface ParkingSpace {
   space_id: string          // 车位编号，如 A-001, B-287
@@ -304,10 +316,23 @@ export interface NotBoughtOwnerStat {
   phone: string
 }
 export interface ReportSummary {
-  total_sold_amount: number          // 已售总金额（含已付款团购车位）
-  total_sold_count: number           // 已售车位总数（含团购已核销）
+  total_sold_amount: number          // 已售总金额（含已售/已核销/团购锁定）
+  total_sold_count: number           // 已售车位总数（含已售/已核销/团购锁定）
   total_unsold: number               // 未售车位总数
   group_verified_count: number       // 团购已核销（已售）车位数
+}
+
+// ---------- 按车库（区域）统计 ----------
+export interface ZoneStat {
+  garage_zone: string        // 车库区域
+  total: number              // 车位总数
+  sold_count: number         // 已售车位数（已售/已核销/团购锁定）
+  sold_amount: number        // 已售金额（已售/已核销/团购锁定 的 price 之和）
+  unsold_count: number       // 未收（未售）车位数
+  unsold_sub: number         // 未收中：子母车位
+  unsold_single: number      // 未收中：单体车位
+  unsold_normal: number      // 未收中：普通车位
+  unsold_other: number       // 未收中：其他类型
 }
 
 // ---------- 车库分区（车位分布图使用的六个区） ----------

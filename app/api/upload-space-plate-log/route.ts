@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { saveBuffer, extFromMime } from '@/lib/local-storage'
+import { extFromMime, saveUpload } from '@/lib/storage'
 
 // 调换日志车位牌照片上传：接收文件，保存到应用服务器本地磁盘
 export async function POST(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: '仅支持图片类型' }, { status: 400 })
     }
 
-    const imageUrl = saveBuffer('change-log-plates', buffer, ext)
+    const imageUrl = await saveUpload('change-log-plates', buffer, ext)
 
     return NextResponse.json({ ok: true, imageUrl })
   } catch (e: any) {

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { GroupBuyPurchase, GroupBuyVerifyDetail } from '@/lib/types'
+import { groupBuyOrderNo, groupBuyVerifyOrderNo } from '@/lib/types'
 
 // ============================================================
 //  团购单据打印组件
@@ -40,7 +41,7 @@ function fmtAmount(v: any): string {
 
 // ===================== 车位团购单 =====================
 export function PurchaseSlip({ p }: { p: GroupBuyPurchase }) {
-  const orderNo = `TG${String(p.purchase_id).padStart(3, '0')}`
+  const orderNo = groupBuyOrderNo(p.purchase_id)
   return (
     <div className="print-area slip-201" style={slipBox}>
       <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei","黑体",serif' }}>
@@ -107,7 +108,7 @@ export function PurchaseSlip({ p }: { p: GroupBuyPurchase }) {
 
 // ===================== 团购车位核销单 =====================
 export function VerifySlip({ v }: { v: GroupBuyVerifyDetail }) {
-  const orderNo = `GCV${String(v.verify_id).padStart(3, '0')}`
+  const orderNo = groupBuyVerifyOrderNo(v.verify_id)
   return (
     <div className="print-area slip-201" style={slipBox}>
       <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 700, margin: '0 0 4px', fontFamily: '"SimHei","黑体",serif' }}>

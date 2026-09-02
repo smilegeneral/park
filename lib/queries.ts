@@ -19,6 +19,7 @@ import type {
   ZoneUnsoldStat,
   TopOwnerStat,
   NotBoughtOwnerStat,
+  ZoneStat,
 } from './types'
 
 // ============================================================
@@ -611,13 +612,32 @@ export async function getLifecycleLogs(spaceId?: string, limit = 200): Promise<S
 export async function getReportSummary(): Promise<ReportSummary> {
   const { rows } = await pool.query(`
     SELECT
-      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN COALESCE(price,0) END), 0)::numeric AS total_sold_amount,
-      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN 1 ELSE 0 END), 0)::int AS total_sold_count,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销','团购锁定') THEN COALESCE(price,0) END), 0)::numeric AS total_sold_amount,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销','团购锁定') THEN 1 ELSE 0 END), 0)::int AS total_sold_count,
       COALESCE(SUM(CASE WHEN status = '未售' THEN 1 ELSE 0 END), 0)::int AS total_unsold,
       COALESCE(SUM(CASE WHEN status = '已售' AND is_group_buy = TRUE THEN 1 ELSE 0 END), 0)::int AS group_verified_count
     FROM parking_spaces
   `)
   return rows[0] as ReportSummary
+}
+
+// 按车库（区域）统计：车位总数、已售车位数、金额、未收车位（按类型细分）
+export async function getStatsByZone(): Promise<ZoneStat[]> {
+  const { rows } = await pool.query(`
+    SELECT garage_zone,
+      COUNT(*)::int AS total,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销','团购锁定') THEN 1 ELSE 0 END), 0)::int AS sold_count,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销','团购锁定') THEN COALESCE(price,0) END), 0)::numeric AS sold_amount,
+      COALESCE(SUM(CASE WHEN status = '未售' THEN 1 ELSE 0 END), 0)::int AS unsold_count,
+      COALESCE(SUM(CASE WHEN status = '未售' AND space_type ILIKE '%子母%' THEN 1 ELSE 0 END), 0)::int AS unsold_sub,
+      COALESCE(SUM(CASE WHEN status = '未售' AND space_type ILIKE '%单体%' THEN 1 ELSE 0 END), 0)::int AS unsold_single,
+      COALESCE(SUM(CASE WHEN status = '未售' AND space_type ILIKE '%普通%' THEN 1 ELSE 0 END), 0)::int AS unsold_normal,
+      COALESCE(SUM(CASE WHEN status = '未售' AND space_type NOT ILIKE '%子母%' AND space_type NOT ILIKE '%单体%' AND space_type NOT ILIKE '%普通%' THEN 1 ELSE 0 END), 0)::int AS unsold_other
+    FROM parking_spaces
+    GROUP BY garage_zone
+    ORDER BY garage_zone
+  `)
+  return rows as ZoneStat[]
 }
 
 // 按车库（区域）统计未售车位个数

@@ -4,6 +4,7 @@ import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, 
 import { auth } from './auth'
 import { requireRole } from './guard'
 import type { ParkingSpace } from './types'
+import { groupBuyOrderNo, groupBuyVerifyOrderNo } from './types'
 
 // 角色等级常量（与 lib/types 保持一致）：0=访客 1=销售员 2=管理员 3=超级管理员
 const ROLE_GUEST = 0
@@ -454,6 +455,8 @@ async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
       ]
     )
     const purchaseId = purRes.rows[0].purchase_id
+    // 车位变更单号直接沿用团购单号（TG + 三位数字），不再用 GBP-时间戳 的长单号
+    const groupOrderNo = groupBuyOrderNo(purchaseId)
 
     // 2. 联动锁定车位（乐观锁，只有未售状态才能锁）
     //    同时写入车位总账变更日志（parking_space_lifecycle_log）
@@ -471,7 +474,7 @@ async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
       await insertLifecycleLog(client, {
         space_id: sid,
         op_type: '团购锁定',
-        change_order_no: `GBP-${Date.now()}-${sid}`,
+        change_order_no: groupOrderNo,
         old_status: '未售',
         new_status: '团购锁定',
         reason: `团购公司「${input.company_name}」购买登记${input.remarks ? '：' + input.remarks : ''}`,
@@ -696,15 +699,18 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
        verifyHk.building_no, verifyHk.unit_no, verifyHk.room_no, input.space_id]
     )
 
-    await client.query(
+    const verRes = await client.query(
       `INSERT INTO group_buy_verify_detail
        (company_id, company_name, space_id, house_key, owner_name, owner_phone, sale_amount, receipt_no, verify_date, operator, remarks)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,$10)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),$9,$10)
+       RETURNING verify_id`,
       [
         input.company_id, companyName, input.space_id, input.house_key,
         input.owner_name, input.owner_phone, input.sale_amount, input.receipt_no, input.operator, input.remarks || '',
       ]
     )
+    // 车位变更单号直接沿用核销单号（GCV + 三位数字）
+    const verifyOrderNo = groupBuyVerifyOrderNo(verRes.rows[0].verify_id)
 
     await upsertOwner(client, {
       house_key: input.house_key,
@@ -717,7 +723,6 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
     // 写入车位总账变更日志（parking_space_lifecycle_log）
     // 注意：核销只更新车位台账(parking_spaces)与团购核销记录表(group_buy_verify_detail)，
     // 不写入通用车位销售记录表(parking_sales_records)
-    const verifyOrderNo = `GBV-${Date.now()}-${input.space_id}`
     await insertLifecycleLog(client, {
       space_id: input.space_id,
       op_type: '团购核销',
@@ -924,8 +929,8 @@ export async function uploadGarageMap(input: UploadGarageMapInput) {
     // 先查旧图，替换后删除本地旧文件（释放磁盘空间）
     const old = await client.query(`SELECT image_url FROM garage_maps WHERE zone = $1`, [input.zone])
     if (old.rowCount && old.rowCount > 0 && old.rows[0].image_url) {
-      const { deleteByUrl } = await import('./local-storage')
-      deleteByUrl(old.rows[0].image_url)
+      const { deleteUpload } = await import('./storage')
+      await deleteUpload(old.rows[0].image_url)
     }
 
     // upsert：同一分区覆盖更新
@@ -966,8 +971,8 @@ export async function markSpacePlateUploaded(input: MarkSpacePlateInput) {
     const oldUrl: string | null = exist.rows[0].preview_url
     if (oldUrl) {
       try {
-        const { deleteByUrl } = await import('./local-storage')
-        deleteByUrl(oldUrl)
+        const { deleteUpload } = await import('./storage')
+        await deleteUpload(oldUrl)
       } catch {
         // 删除旧图失败不阻断主流程
       }
@@ -999,8 +1004,8 @@ export async function markChangeLogPlateUploaded(input: { log_id: number; image_
     const oldUrl: string | null = exist.rows[0].preview_url
     if (oldUrl) {
       try {
-        const { deleteByUrl } = await import('./local-storage')
-        deleteByUrl(oldUrl)
+        const { deleteUpload } = await import('./storage')
+        await deleteUpload(oldUrl)
       } catch {
         // 删除旧图失败不阻断主流程
       }
