@@ -293,6 +293,22 @@ export const ROLE_LABELS: Record<number, string> = {
   3: '超级管理员',
 }
 
+// ---------- AI 配置（统计报表「AI 智能问数」） ----------
+// 注意：接口中不含 api_key_enc，明文 Key 永不返回前端
+export interface AiConfig {
+  id: number
+  name: string // AI 名称，前端下拉展示
+  provider: string // 服务商：groq/gemini/siliconflow/deepseek/openai/custom
+  api_key_hint: string // 脱敏展示，如 gsk_ab****3fA2
+  base_url: string // 留空则用服务商预设
+  model: string // 留空则用服务商预设
+  is_default: boolean
+  enabled: boolean
+  created_by?: string
+  created_at?: string
+  updated_at?: string
+}
+
 // ---------- 报表统计结果 ----------
 export interface ZoneUnsoldStat {
   garage_zone: string

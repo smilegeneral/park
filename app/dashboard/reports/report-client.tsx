@@ -9,6 +9,7 @@ import type {
   TopOwnerStat,
   NotBoughtOwnerStat,
 } from '@/lib/types'
+import AiChat from './ai-chat'
 
 // 金额格式化：按数据库返回的原始数值原样显示，不做任何四舍五入。
 // postgres 的 numeric 以字符串返回（如 "123456.78"）；若先转 Number 再
@@ -61,12 +62,13 @@ export default function ReportClient({
   topOwners: TopOwnerStat[]
   notBought: NotBoughtOwnerStat[]
 }) {
-  const [tab, setTab] = useState<'zone' | 'top' | 'notbought'>('zone')
+  const [tab, setTab] = useState<'zone' | 'top' | 'notbought' | 'ai'>('zone')
 
   const tabs: { key: typeof tab; label: string }[] = [
     { key: 'zone', label: '按车库未售' },
     { key: 'top', label: '购买最多业主' },
     { key: 'notbought', label: '未购车位业主' },
+    { key: 'ai', label: '🤖 AI 智能问数' },
   ]
 
   // 导出 Excel：汇总 / 按车库 / 购买最多业主 / 未购业主 四个工作表
@@ -320,6 +322,9 @@ export default function ReportClient({
           </div>
         </Card>
       )}
+
+      {/* AI 智能问数 */}
+      {tab === 'ai' && <AiChat />}
     </div>
   )
 }

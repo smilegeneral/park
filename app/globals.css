@@ -214,6 +214,13 @@ tr:hover td { background: #f5f9ff; }
   .sidebar, .sidebar * { display: none !important; }
 }
 
+/* ============ AI 智能问数：思考中省略号动画 ============ */
+.dots { display: inline-block; animation: dots-fade 1.4s ease-in-out infinite; }
+@keyframes dots-fade {
+  0%, 100% { opacity: .25; }
+  50% { opacity: 1; }
+}
+
 /* ============ 右侧抽屉详情 ============ */
 .drawer-mask {
   position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35);

@@ -3,6 +3,8 @@ import { withTransaction } from './db'
 import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, getUnsoldSpaces, getNextGroupSwapOrderNo } from './queries'
 import { auth } from './auth'
 import { requireRole } from './guard'
+import { encryptApiKey, maskApiKey, canEncrypt } from './ai-crypto'
+import { presetOf } from './ai-presets'
 import type { ParkingSpace } from './types'
 import { groupBuyOrderNo, groupBuyVerifyOrderNo } from './types'
 
@@ -1160,5 +1162,116 @@ export async function cancelParkingSpace(spaceId: string, remarks?: string, chan
 // 供客户端组件调用：查询未售车位（封装为 server action，避免 pg 进入浏览器 bundle）
 export async function fetchUnsoldSpaces(): Promise<ParkingSpace[]> {
   return await getUnsoldSpaces()
+}
+
+// ==================== AI 配置管理（统计报表「AI 智能问数」） ====================
+// 约定：API Key 一律经 AES-256-GCM 加密后落库，明文既不落库也不返回前端。
+export interface AiConfigInput {
+  id?: number
+  name: string
+  provider: string
+  apiKey?: string // 新增必填；编辑时留空表示不修改
+  baseUrl?: string
+  model?: string
+  enabled?: boolean
+  isDefault?: boolean
+}
+
+async function currentActor(): Promise<string> {
+  const u = (await auth())?.user as { username?: string; name?: string } | undefined
+  return String(u?.username || u?.name || 'system')
+}
+
+export async function saveAiConfig(input: AiConfigInput) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('保存 AI 配置')
+
+  const name = (input.name || '').trim()
+  if (!name) throw new Error('请填写 AI 名称')
+  if (name.length > 50) throw new Error('AI 名称最长 50 个字符')
+
+  const provider = (input.provider || 'groq').toLowerCase()
+  if (!presetOf(provider)) throw new Error('不支持的 AI 服务商')
+
+  const apiKey = (input.apiKey || '').trim()
+  if (apiKey && !canEncrypt()) {
+    throw new Error('服务端未配置 AI_KEY_SECRET（或 NEXTAUTH_SECRET），无法安全保存 API Key')
+  }
+
+  const baseUrl = (input.baseUrl || '').trim()
+  const model = (input.model || '').trim()
+  const enabled = input.enabled !== false
+  const actor = await currentActor()
+
+  return withTransaction(async (client) => {
+    const dupName = await client.query(
+      `SELECT 1 FROM ai_config WHERE lower(name) = lower($1)` + (input.id ? ` AND id <> $2` : ''),
+      input.id ? [name, input.id] : [name]
+    )
+    if (dupName.rowCount && dupName.rowCount > 0) throw new Error('AI 名称已存在')
+
+    // ---- 编辑 ----
+    if (input.id) {
+      const updates = ['name = $1', 'provider = $2', 'base_url = $3', 'model = $4', 'enabled = $5', 'updated_at = NOW()']
+      const params: any[] = [name, provider, baseUrl, model, enabled]
+      let i = params.length
+      if (apiKey) {
+        updates.push(`api_key_enc = $${++i}`, `api_key_hint = $${++i}`)
+        params.push(encryptApiKey(apiKey), maskApiKey(apiKey))
+      }
+      params.push(input.id)
+      const r = await client.query(`UPDATE ai_config SET ${updates.join(', ')} WHERE id = $${++i}`, params)
+      if (!r.rowCount || r.rowCount === 0) throw new Error('AI 配置不存在')
+
+      if (input.isDefault) {
+        await client.query(`UPDATE ai_config SET is_default = FALSE WHERE id <> $1`, [input.id])
+        await client.query(`UPDATE ai_config SET is_default = TRUE WHERE id = $1`, [input.id])
+      }
+      return { id: input.id }
+    }
+
+    // ---- 新增 ----
+    if (!apiKey) throw new Error('请填写 API Key')
+    if (provider === 'custom' && (!baseUrl || !model)) {
+      throw new Error('自定义服务商需同时填写 Base URL 与模型名')
+    }
+    // 第一条配置自动成为默认，保证查询窗口有可用选项
+    const cnt = await client.query(`SELECT COUNT(*)::int AS c FROM ai_config`)
+    const makeDefault = input.isDefault === true || cnt.rows[0].c === 0
+    if (makeDefault) await client.query(`UPDATE ai_config SET is_default = FALSE`)
+
+    const r = await client.query(
+      `INSERT INTO ai_config (name, provider, api_key_enc, api_key_hint, base_url, model, is_default, enabled, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [name, provider, encryptApiKey(apiKey), maskApiKey(apiKey), baseUrl, model, makeDefault, enabled, actor]
+    )
+    return { id: r.rows[0].id }
+  })
+}
+
+// 设为查询窗口默认选中的 AI
+export async function setDefaultAiConfig(input: { id: number }) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('设置默认 AI')
+  return withTransaction(async (client) => {
+    const exist = await client.query(`SELECT 1 FROM ai_config WHERE id = $1`, [input.id])
+    if (!exist.rowCount || exist.rowCount === 0) throw new Error('AI 配置不存在')
+    await client.query(`UPDATE ai_config SET is_default = FALSE WHERE is_default = TRUE`)
+    await client.query(`UPDATE ai_config SET is_default = TRUE, updated_at = NOW() WHERE id = $1`, [input.id])
+    return { ok: true }
+  })
+}
+
+export async function deleteAiConfig(input: { id: number }) {
+  if (!await requireRole(ROLE_ADMIN)) return unauthorized('删除 AI 配置')
+  return withTransaction(async (client) => {
+    const r = await client.query(`DELETE FROM ai_config WHERE id = $1 RETURNING is_default`, [input.id])
+    if (!r.rowCount || r.rowCount === 0) throw new Error('AI 配置不存在')
+    // 删掉默认配置时顺延指定新的默认，避免下拉无默认项
+    if (r.rows[0]?.is_default) {
+      await client.query(
+        `UPDATE ai_config SET is_default = TRUE WHERE id = (SELECT id FROM ai_config ORDER BY id ASC LIMIT 1)`
+      )
+    }
+    return { ok: true }
+  })
 }
 

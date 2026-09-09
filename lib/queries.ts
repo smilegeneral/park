@@ -11,6 +11,7 @@ import type {
   GroupBuyStat,
   GroupBuyVerifyDetail,
   AdminUser,
+  AiConfig,
   Permission,
   SpaceSearchParams,
   PrintTemplate,
@@ -682,4 +683,33 @@ export async function getOwnersNotBought(): Promise<NotBoughtOwnerStat[]> {
     ORDER BY o.building_no, o.unit_no, o.room_no
   `)
   return rows as NotBoughtOwnerStat[]
+}
+
+// ============================================================
+//  AI 配置（ai_config）
+//  统一约定：任何查询都不得返回 api_key_enc，明文 Key 不下发前端
+// ============================================================
+
+const AI_CONFIG_COLUMNS = `
+  id, name, provider,
+  COALESCE(api_key_hint,'') AS api_key_hint,
+  COALESCE(base_url,'')     AS base_url,
+  COALESCE(model,'')        AS model,
+  is_default, enabled, created_by, created_at, updated_at
+`
+
+// 全部配置（管理页用）
+export async function getAiConfigs(): Promise<AiConfig[]> {
+  const { rows } = await pool.query(
+    `SELECT ${AI_CONFIG_COLUMNS} FROM ai_config ORDER BY is_default DESC, id ASC`
+  )
+  return rows as AiConfig[]
+}
+
+// 启用的配置（AI 查询窗口下拉用）
+export async function getEnabledAiConfigs(): Promise<AiConfig[]> {
+  const { rows } = await pool.query(
+    `SELECT ${AI_CONFIG_COLUMNS} FROM ai_config WHERE enabled = TRUE ORDER BY is_default DESC, id ASC`
+  )
+  return rows as AiConfig[]
 }
