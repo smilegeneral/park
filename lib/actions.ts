@@ -1,7 +1,8 @@
 'use server'
 import { withTransaction } from './db'
 import { getSpaceById, getOwnerSoldSpaces, getOldReceiptNo, insertLifecycleLog, getUnsoldSpaces, getNextGroupSwapOrderNo } from './queries'
-import { auth } from './auth'
+import { getServerSession } from 'next-auth'
+import { auth, authOptions } from './auth'
 import { requireRole } from './guard'
 import { encryptApiKey, maskApiKey, canEncrypt } from './ai-crypto'
 import { presetOf } from './ai-presets'
@@ -1166,6 +1167,44 @@ export async function fetchUnsoldSpaces(): Promise<ParkingSpace[]> {
 
 // ==================== AI 配置管理（统计报表「AI 智能问数」） ====================
 // 约定：API Key 一律经 AES-256-GCM 加密后落库，明文既不落库也不返回前端。
+
+/**
+ * AI 配置专用鉴权：把「读不到身份」和「角色不足」分开提示。
+ * 早期签发的 JWT 可能不含 id 字段，会让 getSessionUser 返回 null，
+ * 与真正的权限不足混为一谈，导致无法定位。
+ */
+async function requireAdminFor(
+  action: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let session: any = null
+  try {
+    session = await getServerSession(authOptions)
+  } catch (e) {
+    return { ok: false, error: `读取登录状态失败：${(e as Error)?.message || String(e)}（${action}）` }
+  }
+
+  const u = session?.user as { id?: string; role?: number } | undefined
+  if (!session || !u) {
+    return {
+      ok: false,
+      error: `未登录或会话已失效（${action}）：Server Action 未取到 session，请退出后重新登录再试`,
+    }
+  }
+
+  const role = Number(u.role ?? 0)
+  if (role < ROLE_ADMIN) {
+    return {
+      ok: false,
+      error:
+        `权限不足（${action}）：当前会话角色等级 ${role}，` +
+        `需要管理员（2）及以上` +
+        (u.id ? '' : '；且会话中缺少用户ID，很可能是旧登录凭证') +
+        '。若账号本身是管理员，请退出后重新登录以刷新会话。',
+    }
+  }
+  return { ok: true }
+}
+
 export interface AiConfigInput {
   id?: number
   name: string
@@ -1189,9 +1228,8 @@ export async function saveAiConfig(
   input: AiConfigInput
 ): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
   try {
-    if (!await requireRole(ROLE_ADMIN)) {
-      return { ok: false, error: '无权执行操作：保存 AI 配置（需要管理员权限）' }
-    }
+    const auth = await requireAdminFor('保存 AI 配置')
+    if (!auth.ok) return auth
 
     const name = (input.name || '').trim()
     if (!name) return { ok: false, error: '请填写 AI 名称' }
@@ -1266,9 +1304,8 @@ export async function setDefaultAiConfig(
   input: { id: number }
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    if (!await requireRole(ROLE_ADMIN)) {
-      return { ok: false, error: '无权执行操作：设置默认 AI（需要管理员权限）' }
-    }
+    const auth = await requireAdminFor('设置默认 AI')
+    if (!auth.ok) return auth
     await withTransaction(async (client) => {
       const exist = await client.query(`SELECT 1 FROM ai_config WHERE id = $1`, [input.id])
       if (!exist.rowCount || exist.rowCount === 0) throw new Error('AI 配置不存在')
@@ -1285,9 +1322,8 @@ export async function deleteAiConfig(
   input: { id: number }
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    if (!await requireRole(ROLE_ADMIN)) {
-      return { ok: false, error: '无权执行操作：删除 AI 配置（需要管理员权限）' }
-    }
+    const auth = await requireAdminFor('删除 AI 配置')
+    if (!auth.ok) return auth
     await withTransaction(async (client) => {
       const r = await client.query(`DELETE FROM ai_config WHERE id = $1 RETURNING is_default`, [input.id])
       if (!r.rowCount || r.rowCount === 0) throw new Error('AI 配置不存在')
