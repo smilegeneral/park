@@ -15,7 +15,9 @@ const SQL_NOISE = new Set([
 /** 编辑距离（只关心 <=2 的差异，超过直接返回大值以提速） */
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0
-  if (Math.abs(a.length - b.length) > 2) return 99
+  // 早退阈值放宽到 5：实测 gar_zone 与 garage_zone 长度差 3、编辑距离 3，
+  // 阈值太小会直接漏掉这类漏写中间字符的错误
+  if (Math.abs(a.length - b.length) > 5) return 99
   const prev = Array.from({ length: b.length + 1 }, (_, i) => i)
   for (let i = 1; i <= a.length; i++) {
     let cur = i
@@ -50,9 +52,9 @@ function findColumnTypos(sql: string): string[] {
     let best: { col: string; d: number } | null = null
     for (const col of known) {
       const d = levenshtein(w, col)
-      // 阈值随字段长度放宽：长字段允许 2 处差异
-      // （实测 arag_zone ↔ garage_zone 距离为 2，固定阈值 1 会漏掉）
-      const maxDist = Math.max(1, Math.floor(Math.min(w.length, col.length) / 4))
+      // 阈值随标识符长度放宽：
+      //   arag_zone(9) → garage_zone 距离 2；gar_zone(8) → garage_zone 距离 3
+      const maxDist = w.length >= 8 ? 3 : w.length >= 5 ? 2 : 1
       if (d <= maxDist && (!best || d < best.d)) best = { col, d }
     }
     if (best) hints.push(`${raw} → ${best.col}`)

@@ -142,6 +142,8 @@ id, zone, image_url, image_name, uploaded_by, created_at, updated_at
 5. 字段名**一律使用英文原名**（如 garage_zone、status）。
    ⚠️ 禁止把中文当字段名（不能写 SELECT 区域、GROUP BY 区域）。
    需要中文展示时，只能放在 AS 之后作为别名，形如：garage_zone AS "区域"。
+   GROUP BY / ORDER BY 请统一用列序号（如 GROUP BY 1、ORDER BY 1 DESC），
+   避免重复书写字段名导致拼错；若写字段名，必须与 SELECT 中的英文原名完全一致。
 6. 只能使用上面列出的表，禁止查询其他表（尤其禁止 admin_user）。
 7. 如果问题无法用现有表回答，输出：SELECT '无法回答该问题' AS "提示"
 8. 涉及金额单位统一为元；涉及日期用北京时间语义，直接比较即可。
