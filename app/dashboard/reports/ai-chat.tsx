@@ -243,7 +243,12 @@ export default function AiChat() {
         body: JSON.stringify({ question: q, history, configId }),
       })
       const data = await parseJsonSafe(res)
-      if (!data?.ok) throw new Error(data?.error || `查询失败（HTTP ${res.status}）`)
+      if (!data?.ok) {
+        // 带上后端返回的 SQL，便于在错误里直接看到 AI 生成了什么
+        const err: any = new Error(data?.error || `查询失败（HTTP ${res.status}）`)
+        err.sql = data?.sql
+        throw err
+      }
 
       setMsgs(prev =>
         prev.map(m =>
@@ -264,10 +269,11 @@ export default function AiChat() {
       // 解读走独立请求：慢或失败都不影响数据展示
       fetchSummary(pendingMsg.id, q, data.sql, data.columns, data.rows, configId)
     } catch (err) {
+      const e = err as any
       setMsgs(prev =>
         prev.map(m =>
           m.id === pendingMsg.id
-            ? { ...m, pending: false, error: (err as Error).message || '查询失败' }
+            ? { ...m, pending: false, error: e?.message || '查询失败', sql: e?.sql }
             : m
         )
       )
@@ -426,7 +432,10 @@ export default function AiChat() {
                 )}
 
                 {m.error && (
-                  <span className="text-red">{m.error}</span>
+                  <>
+                    <span className="text-red">{m.error}</span>
+                    {m.sql && <SqlBlock sql={m.sql} />}
+                  </>
                 )}
 
                 {!m.pending && !m.error && (

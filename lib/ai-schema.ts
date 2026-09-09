@@ -1,6 +1,43 @@
 // ============ 供 AI 生成 SQL 使用的数据库结构说明 ============
 // 这里的描述直接决定 AI 生成 SQL 的准确率，改动表结构后请同步更新。
 
+/**
+ * 已知字段名全集（用于校验 AI 生成的 SQL 是否拼错字段）。
+ * 小模型常见幻觉是把字段名写漏/写错一个字母（如 garage_zone → arag_zone），
+ * 直接执行只会得到难以理解的 syntax error，这里提前拦下并纠正。
+ */
+export const AI_KNOWN_COLUMNS = [
+  // parking_spaces
+  'space_id', 'garage_zone', 'space_num', 'status', 'space_type', 'building_no',
+  'unit_no', 'room_no', 'house_key', 'employee_name', 'owner_name', 'phone',
+  'price', 'sale_date', 'receipt_no', 'confirm_no', 'remarks', 'is_group_buy',
+  'group_company',
+  // owner_info
+  'building_unit_room', 'phone2', 'parking_count', 'parking_spaces',
+  'change_record', 'parking_price',
+  // group_buy_company / purchase
+  'company_id', 'company_name', 'department', 'contact_person', 'contact_phone',
+  'space_count', 'space_list', 'total_price', 'is_paid', 'invoice_type',
+  'purchase_id', 'amount', 'operator',
+  // parking_sales_records
+  'record_id', 'sale_order_no', 'space_no', 'sale_time', 'confirmation_no',
+  'process_result', 'preview_url',
+  // parking_space_change_log
+  'log_id', 'old_space_no', 'old_space_type', 'old_house_key', 'old_space_price',
+  'new_space_no', 'new_space_type', 'new_house_key', 'new_space_price',
+  'price_difference', 'swap_type', 'change_reason', 'new_receipt_no', 'changed_at',
+  // owner_info_change_log
+  'change_field', 'old_value', 'new_value',
+  // group_buy_verify_detail
+  'verify_id', 'owner_phone', 'sale_amount', 'verify_date',
+  // parking_space_lifecycle_log
+  'op_type', 'change_order_no', 'old_status', 'new_status', 'reason',
+  // garage_maps
+  'zone', 'image_url', 'image_name', 'uploaded_by',
+  // 通用时间字段
+  'created_at', 'updated_at', 'id',
+] as const
+
 /** 允许 AI 查询的表白名单（安全兜底，不含 admin_user 等敏感表） */
 export const AI_ALLOWED_TABLES = [
   'parking_spaces',
