@@ -136,7 +136,22 @@ export function validateSelectSql(rawSql: string): GuardResult {
     }
   }
 
-  // 7) 限制返回行数：无 LIMIT 补 200，超过则压到 200
+  // 7) 中文字段名检查
+  // 模型常把中文直接当字段名（SELECT 区域 …），Postgres 只会报难以理解的语法错。
+  // 中文只允许出现在单引号字符串或 AS 后的双引号别名里。
+  const stripped = sql
+    .replace(/'(?:[^'])*'/g, "''") // 去掉字符串字面量
+    .replace(/"(?:[^"])*"/g, '""') // 去掉双引号别名
+  if (/[\u4e00-\u9fa5]/.test(stripped)) {
+    return {
+      ok: false,
+      reason:
+        'SQL 中出现了中文字段名：字段名必须用英文原名（如 garage_zone）；' +
+        '需要中文展示时只能写成 AS "区域" 这样的别名',
+    }
+  }
+
+  // 8) 限制返回行数：无 LIMIT 补 200，超过则压到 200
   const limitMatch = sql.match(/\blimit\s+(\d+)/i)
   if (!limitMatch) {
     sql = `${sql} LIMIT ${AI_MAX_ROWS}`
