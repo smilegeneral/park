@@ -50,7 +50,8 @@ async function generateSql(
       content: `上一条 SQL 执行失败或被安全策略拒绝，原因：${errorHint}\n请修正后只重新输出一条 SQL。`,
     })
   }
-  const raw = await chat(messages, { temperature: 0, maxTokens: 1200 }, cfg)
+  // SQL 一般很短，限制输出长度可明显缩短推理耗时
+  const raw = await chat(messages, { temperature: 0, maxTokens: 700 }, cfg)
   return extractSql(raw)
 }
 

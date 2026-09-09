@@ -57,33 +57,50 @@ export async function chat(
   // 必须设超时：AI 服务无响应时 fetch 会一直挂起，
   // 最终被平台网关掐断并返回 HTML 错误页，前端只能看到难以理解的解析报错。
   const timeoutMs = opts.timeoutMs ?? 25_000
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  // Qwen3 / DeepSeek-R1 等推理模型默认先生成大量思考内容，响应耗时成倍上升，
+  // 很容易触发 Vercel 免费版 10 秒函数上限，这里默认关闭思考模式。
+  const mayThink = /qwen3|qwq|deepseek-r1|\br1\b|thinking/i.test(c.model)
+
+  const send = async (disableThinking: boolean) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      return await fetch(`${c.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${c.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: c.model,
+          messages,
+          temperature: opts.temperature ?? 0,
+          max_tokens: opts.maxTokens ?? 2048,
+          ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
+          ...(disableThinking ? { enable_thinking: false } : {}),
+        }),
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+  }
 
   let res: Response
   try {
-    res = await fetch(`${c.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${c.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: c.model,
-        messages,
-        temperature: opts.temperature ?? 0,
-        max_tokens: opts.maxTokens ?? 2048,
-        ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
-      }),
-      signal: controller.signal,
-    })
+    res = await send(mayThink)
+    // 少数服务端不认识 enable_thinking，返回 400 时去掉该参数重试一次
+    if (!res.ok && mayThink && res.status === 400) {
+      res = await send(false)
+    }
   } catch (e) {
     if ((e as Error)?.name === 'AbortError') {
-      throw new Error(`AI 响应超时（超过 ${Math.round(timeoutMs / 1000)} 秒），请重试或更换更快的 AI 服务`)
+      throw new Error(
+        `AI 响应超时（超过 ${Math.round(timeoutMs / 1000)} 秒）。Vercel 免费版函数上限为 10 秒，建议换用非推理模型（Qwen2.5-7B-Instruct 或 Groq）`
+      )
     }
     throw new Error(`无法连接 AI 服务（${c.baseUrl}）：${(e as Error)?.message || String(e)}`)
-  } finally {
-    clearTimeout(timer)
   }
 
   if (!res.ok) {
