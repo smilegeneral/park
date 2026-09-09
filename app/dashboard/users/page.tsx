@@ -10,10 +10,12 @@ export default async function UsersPage() {
   // ai_config 表可能尚未创建（未执行 sql/init-ai-config.sql），
   // 容错处理：读不到就当空列表，避免整个用户管理页打不开。
   let aiConfigs: AiConfig[] = []
+  let aiLoadError = ''
   try {
     aiConfigs = await getAiConfigs()
-  } catch {
-    aiConfigs = []
+  } catch (e) {
+    // 记录原因并展示在页面上，避免只在点击保存时才暴露问题
+    aiLoadError = (e as Error)?.message || String(e)
   }
 
   return (
@@ -26,7 +28,7 @@ export default async function UsersPage() {
       </header>
 
       <UserManager users={users} />
-      <AiConfigManager configs={aiConfigs} />
+      <AiConfigManager configs={aiConfigs} loadError={aiLoadError} />
     </main>
   )
 }

@@ -20,7 +20,13 @@ function friendlyError(e: any): string {
   return m
 }
 
-export default function AiConfigManager({ configs }: { configs: AiConfig[] }) {
+export default function AiConfigManager({
+  configs,
+  loadError,
+}: {
+  configs: AiConfig[]
+  loadError?: string
+}) {
   const router = useRouter()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<AiConfig | null>(null)
@@ -36,8 +42,9 @@ export default function AiConfigManager({ configs }: { configs: AiConfig[] }) {
     if (!confirm(`确定删除 AI 配置「${c.name}」？`)) return
     startTransition(async () => {
       try {
-        await deleteAiConfig({ id: c.id })
-        apply({ type: 'ok', text: `✅ 已删除「${c.name}」` })
+        const res = await deleteAiConfig({ id: c.id })
+        if (res.ok) apply({ type: 'ok', text: `✅ 已删除「${c.name}」` })
+        else setMsg({ type: 'err', text: `❌ ${friendlyError(res.error)}` })
       } catch (e: any) {
         setMsg({ type: 'err', text: `❌ ${friendlyError(e)}` })
       }
@@ -47,8 +54,9 @@ export default function AiConfigManager({ configs }: { configs: AiConfig[] }) {
   function handleSetDefault(c: AiConfig) {
     startTransition(async () => {
       try {
-        await setDefaultAiConfig({ id: c.id })
-        apply({ type: 'ok', text: `✅ 已将「${c.name}」设为默认` })
+        const res = await setDefaultAiConfig({ id: c.id })
+        if (res.ok) apply({ type: 'ok', text: `✅ 已将「${c.name}」设为默认` })
+        else setMsg({ type: 'err', text: `❌ ${friendlyError(res.error)}` })
       } catch (e: any) {
         setMsg({ type: 'err', text: `❌ ${friendlyError(e)}` })
       }
@@ -79,6 +87,25 @@ export default function AiConfigManager({ configs }: { configs: AiConfig[] }) {
           onClose={() => { setShowForm(false); setEditing(null) }}
           onMsg={apply}
         />
+      )}
+
+      {loadError && (
+        <div
+          style={{
+            marginBottom: 12,
+            fontSize: 13,
+            background: '#fff2f0',
+            border: '1px solid #ffccc7',
+            borderRadius: 6,
+            padding: '8px 12px',
+            color: '#cf1322',
+          }}
+        >
+          ⚠️ 读取 ai_config 表失败：{loadError}
+          <div style={{ marginTop: 4 }}>
+            请先在数据库执行 <code>sql/init-ai-config.sql</code> 建表，再刷新本页。
+          </div>
+        </div>
       )}
 
       {msg && (
@@ -198,7 +225,7 @@ function AiConfigForm({
 
     startTransition(async () => {
       try {
-        await saveAiConfig({
+        const res = await saveAiConfig({
           id: initial?.id,
           name: name.trim(),
           provider,
@@ -208,8 +235,12 @@ function AiConfigForm({
           enabled,
           isDefault,
         })
-        onMsg({ type: 'ok', text: `✅ AI「${name}」已保存` })
-        onClose()
+        if (res.ok) {
+          onMsg({ type: 'ok', text: `✅ AI「${name}」已保存` })
+          onClose()
+        } else {
+          onMsg({ type: 'err', text: `❌ ${friendlyError(res.error)}` })
+        }
       } catch (e: any) {
         onMsg({ type: 'err', text: `❌ ${friendlyError(e)}` })
       }
