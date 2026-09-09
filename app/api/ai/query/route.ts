@@ -72,36 +72,9 @@ async function runReadOnly(sql: string) {
   }
 }
 
-/** 让 AI 用中文解读查询结果 */
-async function summarize(
-  question: string,
-  sql: string,
-  columns: string[],
-  rows: any[],
-  cfg: AiRuntimeConfig | undefined
-): Promise<string> {
-  const sample = rows.slice(0, 30).map(r => {
-    const o: Record<string, any> = {}
-    columns.forEach(c => {
-      o[c] = r[c]
-    })
-    return o
-  })
-  const prompt = `用户问题：${question}
-
-执行的 SQL：
-${sql}
-
-查询结果（共 ${rows.length} 行，以下为前 ${sample.length} 行）：
-${JSON.stringify(sample, null, 2)}
-
-请用简洁的中文（2-4 句话）总结这个结果，直接给出关键数字和结论。不要复述 SQL，不要使用 Markdown 标题，可以用「；」分隔要点。如果结果为空，说明未查到符合条件的数据并给出可能原因。`
-  try {
-    return await chat([{ role: 'user', content: prompt }], { temperature: 0.3, maxTokens: 500 }, cfg)
-  } catch {
-    return '' // 解读失败不影响主结果
-  }
-}
+// 说明：结果解读已拆到 /api/ai/summary 独立接口。
+// 一次请求里串联两次 AI 调用（生成 SQL + 解读）很容易超出免费版函数时长上限，
+// 被网关掐断后前端只会收到 HTML 错误页。拆分后主流程只保留一次 AI 调用。
 
 export async function POST(req: NextRequest) {
   // 1) 鉴权：AI 可查全表数据，限定管理员（role >= 2）
@@ -201,16 +174,12 @@ export async function POST(req: NextRequest) {
     const columns = (res.fields || []).map((f: any) => String(f.name))
     const rows = res.rows || []
 
-    // 6) AI 解读结果
-    const summary = await summarize(question, guard.sql, columns, rows, cfg)
-
     return NextResponse.json({
       ok: true,
       sql: guard.sql,
       columns,
       rows,
       rowCount: rows.length,
-      summary,
       ai: usedAi,
     })
   } catch (err) {

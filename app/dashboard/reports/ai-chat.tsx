@@ -26,6 +26,24 @@ const SUGGESTIONS = [
 let seq = 0
 const nextId = () => ++seq
 
+// 平台超时/错误页返回的是 HTML，直接 res.json() 会抛
+// "Unexpected token '<'..." 这类看不懂的错误，这里统一转成可读提示
+async function parseJsonSafe(res: Response): Promise<any> {
+  const text = await res.text()
+  const ct = res.headers.get('content-type') || ''
+  if (!ct.includes('application/json')) {
+    if (res.status === 504 || res.status === 502 || res.status === 503) {
+      throw new Error('请求超时：AI 查询耗时过长被网关中断。请重试，或右上角换一个响应更快的 AI。')
+    }
+    throw new Error(`服务返回异常（HTTP ${res.status}），通常是函数超时，请重试`)
+  }
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error(`响应解析失败：${text.slice(0, 120)}`)
+  }
+}
+
 function fmtCell(v: any, col: string): string {
   if (v === null || v === undefined || v === '') return '—'
   if (typeof v === 'boolean') return v ? '是' : '否'
@@ -224,8 +242,8 @@ export default function AiChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: q, history, configId }),
       })
-      const data = await res.json()
-      if (!data.ok) throw new Error(data.error || '查询失败')
+      const data = await parseJsonSafe(res)
+      if (!data?.ok) throw new Error(data?.error || `查询失败（HTTP ${res.status}）`)
 
       setMsgs(prev =>
         prev.map(m =>
@@ -233,7 +251,7 @@ export default function AiChat() {
             ? {
                 ...m,
                 pending: false,
-                content: data.summary || '查询完成，见下方结果。',
+                content: '查询完成，见下方结果。',
                 sql: data.sql,
                 columns: data.columns,
                 rows: data.rows,
@@ -242,6 +260,9 @@ export default function AiChat() {
             : m
         )
       )
+
+      // 解读走独立请求：慢或失败都不影响数据展示
+      fetchSummary(pendingMsg.id, q, data.sql, data.columns, data.rows, configId)
     } catch (err) {
       setMsgs(prev =>
         prev.map(m =>
@@ -252,6 +273,30 @@ export default function AiChat() {
       )
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 结果解读：独立请求，失败静默降级（保留默认文案）
+  async function fetchSummary(
+    id: number,
+    question: string,
+    sql: string,
+    columns: string[],
+    rows: any[],
+    cfgId: number | null
+  ) {
+    try {
+      const res = await fetch('/api/ai/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, sql, columns, rows, configId: cfgId }),
+      })
+      const data = await parseJsonSafe(res)
+      if (data?.ok && data.summary) {
+        setMsgs(prev => prev.map(m => (m.id === id ? { ...m, content: data.summary } : m)))
+      }
+    } catch {
+      // 解读失败不打扰用户
     }
   }
 

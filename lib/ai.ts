@@ -46,7 +46,7 @@ export function envProviderInfo(): { name: string; provider: string; model: stri
 
 export async function chat(
   messages: ChatMessage[],
-  opts: { temperature?: number; maxTokens?: number; jsonMode?: boolean } = {},
+  opts: { temperature?: number; maxTokens?: number; jsonMode?: boolean; timeoutMs?: number } = {},
   cfg?: AiRuntimeConfig
 ): Promise<string> {
   const c: AiRuntimeConfig = cfg && cfg.apiKey ? cfg : resolveEnvConfig()
@@ -54,20 +54,37 @@ export async function chat(
     throw new Error('AI 未配置：请在「用户与角色 → AI 配置」中添加，或设置环境变量 AI_API_KEY')
   }
 
-  const res = await fetch(`${c.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${c.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: c.model,
-      messages,
-      temperature: opts.temperature ?? 0,
-      max_tokens: opts.maxTokens ?? 2048,
-      ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
-    }),
-  })
+  // 必须设超时：AI 服务无响应时 fetch 会一直挂起，
+  // 最终被平台网关掐断并返回 HTML 错误页，前端只能看到难以理解的解析报错。
+  const timeoutMs = opts.timeoutMs ?? 25_000
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  let res: Response
+  try {
+    res = await fetch(`${c.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${c.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: c.model,
+        messages,
+        temperature: opts.temperature ?? 0,
+        max_tokens: opts.maxTokens ?? 2048,
+        ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
+      }),
+      signal: controller.signal,
+    })
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') {
+      throw new Error(`AI 响应超时（超过 ${Math.round(timeoutMs / 1000)} 秒），请重试或更换更快的 AI 服务`)
+    }
+    throw new Error(`无法连接 AI 服务（${c.baseUrl}）：${(e as Error)?.message || String(e)}`)
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
