@@ -147,4 +147,9 @@ id, zone, image_url, image_name, uploaded_by, created_at, updated_at
 6. 只能使用上面列出的表，禁止查询其他表（尤其禁止 admin_user）。
 7. 如果问题无法用现有表回答，输出：SELECT '无法回答该问题' AS "提示"
 8. 涉及金额单位统一为元；涉及日期用北京时间语义，直接比较即可。
+9. 输出前自查（以下是最常犯的格式错误，务必避免）：
+   - 中文别名必须完整写成：garage_zone AS "区域"，禁止写成 区域" 或漏写 AS
+   - ORDER BY / GROUP BY 中间必须有空格，禁止写成 ORDERBY
+   - WHERE 条件字段名只写一次，如 status = '未售'，禁止写成 status status
+   - 列之间用「逗号 + 空格」分隔，禁止 garage_zone,区域" 这种粘连
 `.trim()

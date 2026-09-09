@@ -144,8 +144,9 @@ export async function POST(req: NextRequest) {
     // 4) 安全校验
     let guard = validateSelectSql(sql)
     if (!guard.ok) {
-      // 带拒绝原因让 AI 重试一次
-      sql = await generateSql(question, history, cfg, guard.reason)
+      // 把拒绝原因 + AI 自己生成的（错误）SQL 一并回传，让它对照修正（仅重试一次）
+      const hint = `${guard.reason}\n你刚才生成的 SQL 是：\n${sql}\n请对照表结构修正后，只重新输出一条完整、正确的 SQL。`
+      sql = await generateSql(question, history, cfg, hint)
       guard = validateSelectSql(sql)
       if (!guard.ok) {
         return NextResponse.json({
@@ -163,7 +164,12 @@ export async function POST(req: NextRequest) {
     } catch (dbErr) {
       // 执行报错时让 AI 修正一次
       const msg = (dbErr as Error)?.message || String(dbErr)
-      const fixed = await generateSql(question, history, cfg, `数据库报错：${msg}`)
+      const fixed = await generateSql(
+        question,
+        history,
+        cfg,
+        `数据库报错：${msg}\n你刚才生成的 SQL 是：\n${guard.sql}\n请对照表结构修正后，只重新输出一条完整、正确的 SQL。`
+      )
       const fixedGuard = validateSelectSql(fixed)
       if (!fixedGuard.ok) {
         return NextResponse.json({ ok: false, error: `SQL 执行失败：${msg}`, sql: guard.sql })
