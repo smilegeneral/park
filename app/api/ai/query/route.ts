@@ -174,7 +174,18 @@ export async function POST(req: NextRequest) {
       if (!fixedGuard.ok) {
         return NextResponse.json({ ok: false, error: `SQL 执行失败：${msg}`, sql: guard.sql })
       }
-      res = await runReadOnly(fixedGuard.sql)
+      // 重试执行仍需兜底：否则异常会冒泡到最外层 catch，
+      // 只返回一句脱敏的 "syntax error ..."，界面上看不到实际执行的 SQL，无法排查。
+      try {
+        res = await runReadOnly(fixedGuard.sql)
+      } catch (retryErr) {
+        const retryMsg = (retryErr as Error)?.message || String(retryErr)
+        return NextResponse.json({
+          ok: false,
+          error: `SQL 执行失败：${retryMsg}（修正前报错：${msg}）`,
+          sql: fixedGuard.sql,
+        })
+      }
       guard = fixedGuard
     }
 

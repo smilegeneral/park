@@ -75,8 +75,14 @@ const GLUED_KEYWORDS = new Set([
 /** 递归把粘连的关键字串拆成合法关键字序列；无法完整拆分则返回 null */
 function splitGluedTokens(s: string): string[] | null {
   if (GLUED_KEYWORDS.has(s)) return [s]
-  if (s.length < 4) return null
-  for (let i = 2; i <= s.length - 2; i++) {
+  // 纯数字：LIMIT1 / LIMIT200 这类"关键字+行数"粘连的结尾部分
+  if (/^\d+$/.test(s)) return [s]
+  // 阈值 3：循环从 i=2 起、且需要剩下的尾段（≥1 字符），
+  // 长度 2 及以下的标识符根本进不了循环，不会误拆（id / zone 等已逐一验证）
+  if (s.length < 3) return null
+  // 上限用 length-1：允许末尾剩 1 个字符（如 LIMIT1 的 "1"）,
+  // 若剩余段不是关键字也不是数字，递归会返回 null 而不会误拆。
+  for (let i = 2; i <= s.length - 1; i++) {
     const head = s.slice(0, i)
     if (!GLUED_KEYWORDS.has(head)) continue
     const rest = splitGluedTokens(s.slice(i))
