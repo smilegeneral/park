@@ -32,6 +32,13 @@ export const AI_PRESETS: Record<string, AiPreset> = {
     keyHint: '以 sk- 开头',
     keyUrl: 'https://cloud.siliconflow.cn/account/ak',
   },
+  zhipu: {
+    label: '智谱 GLM（GLM-4.7-Flash 免费）',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4.7-flash',
+    keyHint: '智谱开放平台的 API Key',
+    keyUrl: 'https://open.bigmodel.cn/usercenter/apikeys',
+  },
   deepseek: {
     label: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com',

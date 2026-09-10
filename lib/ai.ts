@@ -58,9 +58,18 @@ export async function chat(
   // 最终被平台网关掐断并返回 HTML 错误页，前端只能看到难以理解的解析报错。
   const timeoutMs = opts.timeoutMs ?? 25_000
 
-  // Qwen3 / DeepSeek-R1 等推理模型默认先生成大量思考内容，响应耗时成倍上升，
-  // 很容易触发 Vercel 免费版 10 秒函数上限，这里默认关闭思考模式。
-  const mayThink = /qwen3|qwq|deepseek-r1|\br1\b|thinking/i.test(c.model)
+  // Qwen3 / DeepSeek-R1 / GLM-4.x 等推理模型默认先生成大量思考内容，
+  // 响应耗时成倍上升，很容易触发平台函数上限，这里默认关闭思考模式。
+  // 注意：GLM-4.7-Flash 虽名字带 Flash，默认仍会思考，必须显式关闭。
+  const mayThink = /qwen3|qwq|deepseek-r1|\br1\b|thinking|glm-4|glm4/i.test(c.model)
+
+  // 各厂商关闭思考的参数格式不同，用错了会被忽略（思考照旧）甚至报 400：
+  //   智谱 GLM            → thinking: { type: 'disabled' }
+  //   Qwen / 硅基流动 等  → enable_thinking: false
+  const isZhipu = /bigmodel\.cn/i.test(c.baseUrl) || /^glm/i.test(c.model)
+  const thinkingOff: Record<string, unknown> = isZhipu
+    ? { thinking: { type: 'disabled' } }
+    : { enable_thinking: false }
 
   const send = async (disableThinking: boolean) => {
     const controller = new AbortController()
@@ -76,9 +85,10 @@ export async function chat(
           model: c.model,
           messages,
           temperature: opts.temperature ?? 0,
-          max_tokens: opts.maxTokens ?? 2048,
+          // 生成一条 SQL 用不了太多 token，限制上限可减少思考/废话导致的耗时
+          max_tokens: opts.maxTokens ?? 1024,
           ...(opts.jsonMode ? { response_format: { type: 'json_object' } } : {}),
-          ...(disableThinking ? { enable_thinking: false } : {}),
+          ...(disableThinking ? thinkingOff : {}),
         }),
         signal: controller.signal,
       })
@@ -97,7 +107,10 @@ export async function chat(
   } catch (e) {
     if ((e as Error)?.name === 'AbortError') {
       throw new Error(
-        `AI 响应超时（超过 ${Math.round(timeoutMs / 1000)} 秒）。Vercel 免费版函数上限为 10 秒，建议换用非推理模型（Qwen2.5-7B-Instruct 或 Groq）`
+        `AI 响应超时（超过 ${Math.round(timeoutMs / 1000)} 秒）。` +
+          (mayThink ? '已尝试为该模型关闭思考模式仍超时：' : '') +
+          '建议换用更快的非推理模型（Groq / gemini-2.0-flash / Qwen2.5-7B-Instruct）。' +
+          '注意 Vercel 免费版函数上限约 10 秒，超时会被平台直接掐断。'
       )
     }
     throw new Error(`无法连接 AI 服务（${c.baseUrl}）：${(e as Error)?.message || String(e)}`)
