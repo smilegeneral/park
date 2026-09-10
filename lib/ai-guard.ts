@@ -62,6 +62,51 @@ function findColumnTypos(sql: string): string[] {
   return hints
 }
 
+// 关键字集合：用于拆分 AI 常写的"粘连关键字"（ORDERBY / GROUPBY / ISNOTNULL 等）
+const GLUED_KEYWORDS = new Set([
+  'SELECT', 'DISTINCT', 'FROM', 'WHERE', 'GROUP', 'BY', 'HAVING', 'ORDER',
+  'ASC', 'DESC', 'LIMIT', 'OFFSET', 'JOIN', 'INNER', 'LEFT', 'RIGHT',
+  'FULL', 'CROSS', 'OUTER', 'ON', 'USING', 'AND', 'OR', 'NOT', 'IS',
+  'NULL', 'NULLS', 'FIRST', 'LAST', 'UNION', 'ALL', 'AS', 'IN', 'EXISTS',
+  'BETWEEN', 'LIKE', 'ILIKE', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+  'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
+])
+
+/** 递归把粘连的关键字串拆成合法关键字序列；无法完整拆分则返回 null */
+function splitGluedTokens(s: string): string[] | null {
+  if (GLUED_KEYWORDS.has(s)) return [s]
+  if (s.length < 4) return null
+  for (let i = 2; i <= s.length - 2; i++) {
+    const head = s.slice(0, i)
+    if (!GLUED_KEYWORDS.has(head)) continue
+    const rest = splitGluedTokens(s.slice(i))
+    if (rest) return [head, ...rest]
+  }
+  return null
+}
+
+/**
+ * 修复 AI 常见的"关键字粘连"错误：ORDERBY → ORDER BY、GROUPBY → GROUP BY。
+ * 这类错误会让 Postgres 报难以理解的 syntax error，直接修掉比重试更省时。
+ * 字符串字面量内的内容不处理，避免改变查询语义。
+ */
+export function fixGluedKeywords(rawSql: string): string {
+  const literals: string[] = []
+  // 1) 先把字符串 / 双引号别名替换成占位符
+  let sql = rawSql.replace(/'(?:[^']|'')*'|"(?:[^"])*"/g, (m) => {
+    literals.push(m)
+    return `\u0000${literals.length - 1}\u0000`
+  })
+  // 2) 拆分粘连关键字
+  sql = sql.replace(/\b[A-Za-z_][A-Za-z0-9_]*\b/g, (word) => {
+    const parts = splitGluedTokens(word.toUpperCase())
+    if (!parts || parts.length < 2) return word
+    return parts.join(' ')
+  })
+  // 3) 还原字面量
+  return sql.replace(/\u0000(\d+)\u0000/g, (_, i) => literals[Number(i)] ?? '')
+}
+
 const MAX_SQL_LENGTH = 4000
 export const AI_MAX_ROWS = 200
 
@@ -111,6 +156,12 @@ export function validateSelectSql(rawSql: string): GuardResult {
   if (!/^(select|with)\b/i.test(sql)) {
     return { ok: false, reason: '只允许执行 SELECT 查询' }
   }
+
+  // 3.1) 修复粘连关键字（ORDERBY → ORDER BY、GROUPBY → GROUP BY 等）。
+  //      必须放在危险关键字检测之前，让规范化后的 SQL 参与后续所有检测：
+  //      否则 SELECTDISTINCT、SELECT...INSERTINTO 这类粘连写法中的关键字
+  //      因缺少词边界而匹配不到 \bxxx\b，会绕过检测。
+  sql = fixGluedKeywords(sql)
 
   // 4) 危险关键字检测
   const hit = sql.match(DANGEROUS_PATTERN)

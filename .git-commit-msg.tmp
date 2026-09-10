@@ -1,0 +1,8 @@
+fix: 修复 AI 生成 SQL 的关键字粘连错误(ORDERBY → ORDER BY)
+
+- 新增 fixGluedKeywords：递归拆分粘连的关键字
+  (ORDERBY/GROUPBY/ISNOTNULL/INNERJOIN/LEFTJOIN 等)
+- 字符串字面量与双引号别名用占位符保护，避免改变查询语义
+- 修复置于危险关键字检测之前，让规范化后的 SQL 参与全部检测
+- 已校验 AI_KNOWN_COLUMNS 全部列名不会被误拆
+  (拆分要求整个标识符完全由关键字组成且不含下划线)
