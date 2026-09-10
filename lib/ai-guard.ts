@@ -86,6 +86,20 @@ function splitGluedTokens(s: string): string[] | null {
 }
 
 /**
+ * 修复 AI 常见的引号不匹配：WHERE status = '未售" 这类
+ * 「以单引号开始、却用双引号结束」的写法会让字符串字面量无法闭合，
+ * 导致后续字面量剥离失效，中文被误判成字段名。
+ * 只处理「引号之间不含空格/换行」的情况，避免误伤 'x' AS "别名" 这类正常写法。
+ */
+export function fixMismatchedQuotes(rawSql: string): string {
+  return rawSql
+    // '未售"  → '未售'
+    .replace(/'([^'"\s\n]+)"/g, "'$1'")
+    // "未售'  → "未售"
+    .replace(/"([^'"\s\n]+)'/g, '"$1"')
+}
+
+/**
  * 修复 AI 常见的"关键字粘连"错误：ORDERBY → ORDER BY、GROUPBY → GROUP BY。
  * 这类错误会让 Postgres 报难以理解的 syntax error，直接修掉比重试更省时。
  * 字符串字面量内的内容不处理，避免改变查询语义。
@@ -157,7 +171,11 @@ export function validateSelectSql(rawSql: string): GuardResult {
     return { ok: false, reason: '只允许执行 SELECT 查询' }
   }
 
-  // 3.1) 修复粘连关键字（ORDERBY → ORDER BY、GROUPBY → GROUP BY 等）。
+  // 3.1) 修复引号不匹配（如 '未售" → '未售'）。
+  //      必须先于关键字修复：字面量若不闭合，后面的字面量识别会整体错位。
+  sql = fixMismatchedQuotes(sql)
+
+  // 3.2) 修复粘连关键字（ORDERBY → ORDER BY、GROUPBY → GROUP BY 等）。
   //      必须放在危险关键字检测之前，让规范化后的 SQL 参与后续所有检测：
   //      否则 SELECTDISTINCT、SELECT...INSERTINTO 这类粘连写法中的关键字
   //      因缺少词边界而匹配不到 \bxxx\b，会绕过检测。
@@ -196,6 +214,20 @@ export function validateSelectSql(rawSql: string): GuardResult {
     .replace(/'(?:[^'])*'/g, "''") // 去掉字符串字面量
     .replace(/"(?:[^"])*"/g, '""') // 去掉双引号别名
   if (/[\u4e00-\u9fa5]/.test(stripped)) {
+    // 引号不成对时，字面量剥离必然失败，此时中文多半是"未闭合的字符串值"
+    // 而非字段名，给出针对性提示，避免误导排查方向。
+    const single = (sql.match(/'/g) || []).length
+    const double = (sql.match(/"/g) || []).length
+    if (single % 2 !== 0 || double % 2 !== 0) {
+      return {
+        ok: false,
+        reason:
+          'SQL 中引号未成对闭合：中文文本必须放在成对的引号里，' +
+          "例如 WHERE status = '未售'（不能写成 '未售\" ）；" +
+          '字段名必须用英文原名（如 garage_zone），' +
+          '中文只能作为字符串值或 AS "区域" 这样的别名出现',
+      }
+    }
     return {
       ok: false,
       reason:
