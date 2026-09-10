@@ -149,6 +149,54 @@ function extractTables(sql: string): string[] {
   return Array.from(found)
 }
 
+// FROM/JOIN 之后紧跟的这些词是子句而非别名，不能被误当成表别名
+const NOT_AN_ALIAS = new Set([
+  'where', 'group', 'order', 'limit', 'offset', 'having', 'on', 'using',
+  'inner', 'left', 'right', 'full', 'cross', 'join', 'union', 'select',
+  'from', 'and', 'or', 'not', 'is', 'null', 'as', 'set', 'when', 'then', 'else',
+])
+
+/** 去掉字符串字面量与双引号别名，避免其中的内容干扰关键字/符号统计 */
+function stripLiterals(sql: string): string {
+  return sql
+    .replace(/'(?:[^']|'')*'/g, "''")
+    .replace(/"(?:[^"])*"/g, '""')
+}
+
+/**
+ * 提取可用的表引用（表名 + 别名）。
+ * 例：FROM parking_spaces p → { parking_spaces, p }
+ */
+function extractTableRefs(sql: string): Set<string> {
+  const refs = new Set<string>()
+  const re = /\b(?:from|join)\s+([a-zA-Z_][\w]*)(?:\s+(?:as\s+)?([a-zA-Z_][\w]*))?/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(sql))) {
+    refs.add(m[1].toLowerCase())
+    const alias = m[2]
+    if (alias && !NOT_AN_ALIAS.has(alias.toLowerCase())) {
+      refs.add(alias.toLowerCase())
+    }
+  }
+  return refs
+}
+
+/**
+ * 找出引用了未定义别名的列（如写了 p.price 却没声明别名 p）。
+ * Postgres 会报 missing FROM-clause entry for table "p"，提前拦下让 AI 修正。
+ */
+function findUndefinedAliases(sql: string, refs: Set<string>): string[] {
+  const stripped = stripLiterals(sql)
+  const re = /\b([a-zA-Z_][\w]*)\s*\.\s*([a-zA-Z_][\w]*)/g
+  const bad = new Set<string>()
+  let m: RegExpExecArray | null
+  while ((m = re.exec(stripped))) {
+    const prefix = m[1].toLowerCase()
+    if (!refs.has(prefix)) bad.add(m[1])
+  }
+  return Array.from(bad)
+}
+
 /**
  * 校验并规范化 AI 生成的 SQL。
  * 通过时返回可直接执行的 SQL（已确保带 LIMIT）。
@@ -187,6 +235,21 @@ export function validateSelectSql(rawSql: string): GuardResult {
   //      因缺少词边界而匹配不到 \bxxx\b，会绕过检测。
   sql = fixGluedKeywords(sql)
 
+  // 3.3) 引号必须成对。未闭合的引号会让 Postgres 报
+  //      unterminated quoted identifier / string，提前拦下让 AI 修正，
+  //      也避免后续的中文字段名判断因字面量剥离失败而误报。
+  const qSingle = (sql.match(/'/g) || []).length
+  const qDouble = (sql.match(/"/g) || []).length
+  if (qSingle % 2 !== 0 || qDouble % 2 !== 0) {
+    return {
+      ok: false,
+      reason:
+        `SQL 中引号未成对（单引号 ${qSingle} 个、双引号 ${qDouble} 个，都必须是偶数）：` +
+        "字符串值用成对单引号（status = '已售'），别名用成对双引号（AS \"区域\"），" +
+        '字段名本身不要加引号',
+    }
+  }
+
   // 4) 危险关键字检测
   const hit = sql.match(DANGEROUS_PATTERN)
   if (hit) {
@@ -204,6 +267,33 @@ export function validateSelectSql(rawSql: string): GuardResult {
     return { ok: false, reason: `不允许查询的表：${illegal.join('、')}` }
   }
 
+  // 5.1) 表别名检查：模型常写 p.price 却忘了在 FROM 里声明别名 p，
+  //      Postgres 会报 missing FROM-clause entry for table "p"
+  const tableRefs = extractTableRefs(sql)
+  const badAliases = findUndefinedAliases(sql, tableRefs)
+  if (badAliases.length > 0) {
+    return {
+      ok: false,
+      reason:
+        `使用了未定义的表别名：${badAliases.join('、')}。` +
+        '请在 FROM / JOIN 中声明别名（如 FROM parking_spaces p），' +
+        '或去掉别名前缀直接写字段名',
+    }
+  }
+
+  // 5.2) CASE 必须闭合：缺少 END 会让 Postgres 报难以定位的语法错
+  const bare = stripLiterals(sql)
+  const caseCount = (bare.match(/\bCASE\b/gi) || []).length
+  const endCount = (bare.match(/\bEND\b/gi) || []).length
+  if (caseCount > endCount) {
+    return {
+      ok: false,
+      reason:
+        `CASE 表达式缺少 END（CASE ${caseCount} 个，END ${endCount} 个）：` +
+        '每个 CASE 都要用 END 闭合，例如 CASE WHEN price IS NOT NULL THEN price ELSE 0 END',
+    }
+  }
+
   // 6) 字段名拼写检查：小模型常写漏一个字母，提前拦下并提示正确字段名
   const typos = findColumnTypos(sql)
   if (typos.length > 0) {
@@ -216,24 +306,8 @@ export function validateSelectSql(rawSql: string): GuardResult {
   // 7) 中文字段名检查
   // 模型常把中文直接当字段名（SELECT 区域 …），Postgres 只会报难以理解的语法错。
   // 中文只允许出现在单引号字符串或 AS 后的双引号别名里。
-  const stripped = sql
-    .replace(/'(?:[^'])*'/g, "''") // 去掉字符串字面量
-    .replace(/"(?:[^"])*"/g, '""') // 去掉双引号别名
-  if (/[\u4e00-\u9fa5]/.test(stripped)) {
-    // 引号不成对时，字面量剥离必然失败，此时中文多半是"未闭合的字符串值"
-    // 而非字段名，给出针对性提示，避免误导排查方向。
-    const single = (sql.match(/'/g) || []).length
-    const double = (sql.match(/"/g) || []).length
-    if (single % 2 !== 0 || double % 2 !== 0) {
-      return {
-        ok: false,
-        reason:
-          'SQL 中引号未成对闭合：中文文本必须放在成对的引号里，' +
-          "例如 WHERE status = '未售'（不能写成 '未售\" ）；" +
-          '字段名必须用英文原名（如 garage_zone），' +
-          '中文只能作为字符串值或 AS "区域" 这样的别名出现',
-      }
-    }
+  // 引号不成对的情况已在 3.3 拦下，此处字面量必定能正常剥离。
+  if (/[\u4e00-\u9fa5]/.test(stripLiterals(sql))) {
     return {
       ok: false,
       reason:
