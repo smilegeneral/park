@@ -44,3 +44,6 @@ dev.log
 dev.err
 *.log
 _v.js
+
+# git commit message 临时文件
+.git-commit-msg.tmp
