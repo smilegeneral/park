@@ -316,10 +316,14 @@ export function validateSelectSql(rawSql: string): GuardResult {
     }
   }
 
-  // 8) 限制返回行数：无 LIMIT 补 200，超过则压到 200
+  // 8) 限制返回行数：无 LIMIT 补 200，超过则压到 200。
+  //    无 GROUP BY 的聚合查询只返回一行，补 LIMIT 没有意义，
+  //    也会让前端展示的 SQL 与"聚合禁止 LIMIT"的提示词自相矛盾。
+  const isBareAggregate =
+    /\b(sum|avg|count|min|max)\s*\(/i.test(sql) && !/\bgroup\s+by\b/i.test(sql)
   const limitMatch = sql.match(/\blimit\s+(\d+)/i)
   if (!limitMatch) {
-    sql = `${sql} LIMIT ${AI_MAX_ROWS}`
+    if (!isBareAggregate) sql = `${sql} LIMIT ${AI_MAX_ROWS}`
   } else if (Number(limitMatch[1]) > AI_MAX_ROWS) {
     sql = sql.replace(/\blimit\s+\d+/i, `LIMIT ${AI_MAX_ROWS}`)
   }

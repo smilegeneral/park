@@ -131,14 +131,16 @@ id, zone, image_url, image_name, uploaded_by, created_at, updated_at
 5. **车位 ↔ 业主关联**：parking_spaces.house_key = owner_info.house_key。
 6. **销售记录表里的车位号字段叫 space_no**（不是 space_id）。
 7. **区域**用 parking_spaces.garage_zone，值形如 'A区'、'D1区'。
-8. 统计金额时 p.price 可能为 NULL，用 COALESCE(p.price, 0)。
+8. 统计金额时 price 可能为 NULL，用 COALESCE(price, 0)（禁止写 p.price，见硬性禁令第 10 条）。
 9. 计数用 COUNT(*)::int，金额求和用 COALESCE(SUM(...),0)::numeric。
 
 ## 输出要求（严格遵守）
 1. 只输出**一条** PostgreSQL SELECT 语句，不要任何解释文字、不要 Markdown 代码块标记。
 2. 禁止 INSERT / UPDATE / DELETE / DROP / ALTER / TRUNCATE / CREATE / GRANT 等任何写操作。
 3. 禁止使用分号拼接多条语句。
-4. 查询必须包含 LIMIT 子句，最多 200 行；聚合类统计也必须加 LIMIT。
+4. 明细查询必须包含 LIMIT 子句，最多 200 行。
+   ⚠️ **聚合查询禁止加 LIMIT**：SUM / AVG / COUNT / MIN / MAX 这类聚合只返回一行，
+   加 LIMIT 毫无意义且会被判错。只有带 GROUP BY 的分组统计、或用户明确要求分页时才加。
 5. 字段名**一律使用英文原名**（如 garage_zone、status）。
    ⚠️ 禁止把中文当字段名（不能写 SELECT 区域、GROUP BY 区域）。
    需要中文展示时，只能放在 AS 之后作为别名，形如：garage_zone AS "区域"。
@@ -152,4 +154,18 @@ id, zone, image_url, image_name, uploaded_by, created_at, updated_at
    - ORDER BY / GROUP BY 中间必须有空格，禁止写成 ORDERBY
    - WHERE 条件字段名只写一次，如 status = '未售'，禁止写成 status status
    - 列之间用「逗号 + 空格」分隔，禁止 garage_zone,区域" 这种粘连
+
+## 硬性禁令（违反即判错）
+10. **禁止使用表别名**：p、ps、t1 等一律禁用，直接写完整表名。
+    这能避免"写了别名却在 FROM 里漏声明"导致的 missing FROM-clause 错误。
+    ✅ SELECT price FROM parking_spaces WHERE status = '已售'
+    ❌ SELECT p.price FROM parking_spaces WHERE status = '已售'
+    多表 JOIN 时用完整表名限定列：parking_spaces.house_key = owner_info.house_key
+11. **聚合结果必须用 COALESCE 兜底**：无数据或全为 NULL 时返回 0，不要返回 NULL。
+    ✅ COALESCE(SUM(price), 0) AS total_amount
+    ❌ SUM(price) AS total_amount
+12. **双引号只用于别名**：表名与字段名一律不加引号，中文只允许出现在 AS "区域" 中。
+    ✅ SELECT garage_zone AS "区域" FROM parking_spaces
+    ❌ SELECT "price" FROM "parking_spaces"
+13. **只输出纯 SQL**：不要注释、不要解释文字、不要 Markdown 代码块标记，只输出 SQL 本身。
 `.trim()
