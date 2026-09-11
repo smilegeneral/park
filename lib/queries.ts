@@ -17,6 +17,7 @@ import type {
   PrintTemplate,
   GarageMap,
   ReportSummary,
+  SalesComposition,
   ZoneUnsoldStat,
   TopOwnerStat,
   NotBoughtOwnerStat,
@@ -620,6 +621,41 @@ export async function getReportSummary(): Promise<ReportSummary> {
     FROM parking_spaces
   `)
   return rows[0] as ReportSummary
+}
+
+// 销售构成：已售（拆零售 / 团购已核销）+ 团购预定，各自的车位数与金额。
+// 金额统一用 price，不区分团购价与业主实付价的差价。
+// 「团购已核销」必须同时覆盖 (status='已售' AND is_group_buy=TRUE) 与 status='已核销'。
+export async function getSalesComposition(): Promise<SalesComposition> {
+  const { rows } = await pool.query(`
+    SELECT
+      COUNT(*)::int AS total_spaces,
+
+      -- 合计：已售（含团购已核销）+ 团购预定
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销','团购锁定') THEN 1 ELSE 0 END), 0)::int AS total_count,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销','团购锁定') THEN COALESCE(price,0) END), 0)::numeric AS total_amount,
+
+      -- 已售合计（零售 + 团购已核销）
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN 1 ELSE 0 END), 0)::int AS sold_count,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN COALESCE(price,0) END), 0)::numeric AS sold_amount,
+
+      -- 其中：零售已售
+      COALESCE(SUM(CASE WHEN status = '已售' AND COALESCE(is_group_buy, FALSE) = FALSE THEN 1 ELSE 0 END), 0)::int AS retail_count,
+      COALESCE(SUM(CASE WHEN status = '已售' AND COALESCE(is_group_buy, FALSE) = FALSE THEN COALESCE(price,0) END), 0)::numeric AS retail_amount,
+
+      -- 其中：团购已核销（两种表示都要算）
+      COALESCE(SUM(CASE WHEN (status = '已售' AND is_group_buy = TRUE) OR status = '已核销' THEN 1 ELSE 0 END), 0)::int AS group_verified_count,
+      COALESCE(SUM(CASE WHEN (status = '已售' AND is_group_buy = TRUE) OR status = '已核销' THEN COALESCE(price,0) END), 0)::numeric AS group_verified_amount,
+
+      -- 团购预定（团购锁定：公司已买下，尚未核销给业主）
+      COALESCE(SUM(CASE WHEN status = '团购锁定' THEN 1 ELSE 0 END), 0)::int AS group_locked_count,
+      COALESCE(SUM(CASE WHEN status = '团购锁定' THEN COALESCE(price,0) END), 0)::numeric AS group_locked_amount,
+
+      -- 未售库存
+      COALESCE(SUM(CASE WHEN status = '未售' THEN 1 ELSE 0 END), 0)::int AS unsold_count
+    FROM parking_spaces
+  `)
+  return rows[0] as SalesComposition
 }
 
 // 按车库（区域）统计：车位总数、已售车位数、金额、未收车位（按类型细分）

@@ -4,12 +4,12 @@ import { useState } from 'react'
 import * as XLSX from 'xlsx'
 import type {
   ReportSummary,
+  SalesComposition,
   ZoneStat,
   ZoneUnsoldStat,
   TopOwnerStat,
   NotBoughtOwnerStat,
 } from '@/lib/types'
-import AiChat from './ai-chat'
 
 // 金额格式化：按数据库返回的原始数值原样显示，不做任何四舍五入。
 // postgres 的 numeric 以字符串返回（如 "123456.78"）；若先转 Number 再
@@ -51,24 +51,25 @@ function StatTile({ label, value, accent }: { label: string; value: string; acce
 
 export default function ReportClient({
   summary,
+  sales,
   zones,
   unsoldByZone,
   topOwners,
   notBought,
 }: {
   summary: ReportSummary
+  sales: SalesComposition
   zones: ZoneStat[]
   unsoldByZone: ZoneUnsoldStat[]
   topOwners: TopOwnerStat[]
   notBought: NotBoughtOwnerStat[]
 }) {
-  const [tab, setTab] = useState<'zone' | 'top' | 'notbought' | 'ai'>('zone')
+  const [tab, setTab] = useState<'zone' | 'top' | 'notbought'>('zone')
 
   const tabs: { key: typeof tab; label: string }[] = [
     { key: 'zone', label: '按车库未售' },
     { key: 'top', label: '购买最多业主' },
     { key: 'notbought', label: '未购车位业主' },
-    { key: 'ai', label: '🤖 AI 智能问数' },
   ]
 
   // 导出 Excel：汇总 / 按车库 / 购买最多业主 / 未购业主 四个工作表
@@ -140,6 +141,59 @@ export default function ReportClient({
         <button type="button" className="btn-primary" style={{ fontSize: 14 }} onClick={handleExport}>
           ⬇ 导出 Excel
         </button>
+      </div>
+
+      {/* 销售构成：已售（零售 / 团购已核销）+ 团购预定 */}
+      <div style={{ marginBottom: 16 }}>
+        <Card title="销售构成：已售（零售 / 团购已核销）+ 团购预定">
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>分类</th>
+                  <th>车位数</th>
+                  <th>金额</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>已售合计</td>
+                  <td>{sales.sold_count}</td>
+                  <td style={{ color: '#fa8c16', fontWeight: 600 }}>{fmtMoney(sales.sold_amount)}</td>
+                </tr>
+                <tr style={{ color: '#555' }}>
+                  <td style={{ paddingLeft: 24 }}>├ 零售已售</td>
+                  <td>{sales.retail_count}</td>
+                  <td>{fmtMoney(sales.retail_amount)}</td>
+                </tr>
+                <tr style={{ color: '#555' }}>
+                  <td style={{ paddingLeft: 24 }}>└ 团购已核销</td>
+                  <td>{sales.group_verified_count}</td>
+                  <td>{fmtMoney(sales.group_verified_amount)}</td>
+                </tr>
+                <tr>
+                  <td>团购预定（公司已买，待核销）</td>
+                  <td>{sales.group_locked_count}</td>
+                  <td style={{ color: '#fa8c16' }}>{fmtMoney(sales.group_locked_amount)}</td>
+                </tr>
+                <tr style={{ fontWeight: 700, background: '#fafafa' }}>
+                  <td>合计（已售 + 团购预定）</td>
+                  <td>{sales.total_count}</td>
+                  <td style={{ color: '#fa8c16' }}>{fmtMoney(sales.total_amount)}</td>
+                </tr>
+                <tr style={{ color: '#888' }}>
+                  <td>未售库存</td>
+                  <td>{sales.unsold_count}</td>
+                  <td>—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray" style={{ marginTop: 8 }}>
+            口径说明：金额统一取车位 price（不区分团购价与业主实付价差价）；
+            「团购已核销」同时包含 status='已售' 且 is_group_buy=TRUE 与 status='已核销' 两种数据。
+          </p>
+        </Card>
       </div>
 
       {/* 按车库（区域）统计 */}
@@ -324,7 +378,6 @@ export default function ReportClient({
       )}
 
       {/* AI 智能问数 */}
-      {tab === 'ai' && <AiChat />}
     </div>
   )
 }

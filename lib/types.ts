@@ -338,6 +338,25 @@ export interface ReportSummary {
   group_verified_count: number       // 团购已核销（已售）车位数
 }
 
+// ---------- 销售构成统计 ----------
+// 金额口径统一使用 parking_spaces.price（不区分团购价与业主实付价差价）。
+// 「团购已核销」含两种表示：新流程 status='已售' AND is_group_buy=TRUE，
+// 以及历史数据 status='已核销'，二者都要统计，否则会漏。
+export interface SalesComposition {
+  total_spaces: number        // 车位总数（全部状态）
+  total_count: number         // 合计车位数：已售/已核销 + 团购锁定
+  total_amount: number        // 合计金额
+  sold_count: number          // 已售车位数（已售/已核销）
+  sold_amount: number         // 已售金额（其中含零售与团购已核销）
+  retail_count: number        // 其中：零售已售车位数
+  retail_amount: number       // 其中：零售已售金额
+  group_verified_count: number    // 其中：团购已核销车位数
+  group_verified_amount: number   // 其中：团购已核销金额
+  group_locked_count: number      // 团购预定车位数（团购锁定，公司已买未核销）
+  group_locked_amount: number     // 团购预定金额
+  unsold_count: number        // 未售车位数
+}
+
 // ---------- 按车库（区域）统计 ----------
 export interface ZoneStat {
   garage_zone: string        // 车库区域

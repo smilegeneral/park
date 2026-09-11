@@ -682,6 +682,10 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
     // 核销 = 团购锁定车位转让给最终业主 → 状态变为"已售"
     // 保留 is_group_buy=TRUE 与 group_company，以便区分团购来源的已售车位
     // 同时拆分 HOUSEKEY 填入 building_no/unit_no/room_no
+    // 金额口径：不区分团购价与业主实付价的差价，统一使用 price 字段，
+    // 故此处不改写 price（保留团购购买价作为成交价），
+    // 也不再写 sale_price —— 该字段在所有建表脚本中都不存在，写入会直接报错。
+    // 核销金额另存于 group_buy_verify_detail.sale_amount 备查。
     const verifyHk = parseHouseKey(input.house_key)
     await client.query(
       `UPDATE parking_spaces
@@ -690,15 +694,14 @@ export async function verifyGroupBuy(input: GroupVerifyInput) {
            phone = $2,
            house_key = $3,
            sale_date = NOW(),
-           sale_price = $4,
            is_group_buy = TRUE,
-           group_company = $5,
-           building_no = $6,
-           unit_no = $7,
-           room_no = $8,
+           group_company = $4,
+           building_no = $5,
+           unit_no = $6,
+           room_no = $7,
            updated_at = NOW()
-       WHERE space_id = $9`,
-      [input.owner_name, input.owner_phone, input.house_key, input.sale_amount, companyName,
+       WHERE space_id = $8`,
+      [input.owner_name, input.owner_phone, input.house_key, companyName,
        verifyHk.building_no, verifyHk.unit_no, verifyHk.room_no, input.space_id]
     )
 
