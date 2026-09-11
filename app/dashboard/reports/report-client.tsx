@@ -5,6 +5,9 @@ import * as XLSX from 'xlsx'
 import type {
   ReportSummary,
   SalesComposition,
+  ZoneSalesStat,
+  GroupCompanyStat,
+  SalesTrendPoint,
   ZoneStat,
   ZoneUnsoldStat,
   TopOwnerStat,
@@ -52,6 +55,9 @@ function StatTile({ label, value, accent }: { label: string; value: string; acce
 export default function ReportClient({
   summary,
   sales,
+  zoneSales,
+  groupCompanies,
+  trend,
   zones,
   unsoldByZone,
   topOwners,
@@ -59,24 +65,89 @@ export default function ReportClient({
 }: {
   summary: ReportSummary
   sales: SalesComposition
+  zoneSales: ZoneSalesStat[]
+  groupCompanies: GroupCompanyStat[]
+  trend: SalesTrendPoint[]
   zones: ZoneStat[]
   unsoldByZone: ZoneUnsoldStat[]
   topOwners: TopOwnerStat[]
   notBought: NotBoughtOwnerStat[]
 }) {
-  const [tab, setTab] = useState<'zone' | 'top' | 'notbought'>('zone')
+  const [tab, setTab] = useState<'zoneSales' | 'group' | 'trend' | 'zone' | 'top' | 'notbought'>(
+    'zoneSales'
+  )
 
   const tabs: { key: typeof tab; label: string }[] = [
+    { key: 'zoneSales', label: '按区域销售构成' },
+    { key: 'group', label: '团购公司专项' },
+    { key: 'trend', label: '销售趋势' },
     { key: 'zone', label: '按车库未售' },
     { key: 'top', label: '购买最多业主' },
     { key: 'notbought', label: '未购车位业主' },
   ]
 
-  // 导出 Excel：汇总 / 按车库 / 购买最多业主 / 未购业主 四个工作表
+  // 导出 Excel：销售构成 / 按区域销售构成 / 团购公司 / 销售趋势 /
+  //             汇总 / 按车库 / 购买最多业主 / 未购业主 共八个工作表
   function handleExport() {
     const wb = XLSX.utils.book_new()
 
-    // 1) 汇总指标
+    // 1) 销售构成（已售拆分零售与团购 + 团购预定）
+    const sRows: any[] = [['分类', '车位数', '金额']]
+    sRows.push(['已售合计', sales.sold_count, Number(sales.sold_amount)])
+    sRows.push(['├ 零售已售', sales.retail_count, Number(sales.retail_amount)])
+    sRows.push(['└ 团购已核销', sales.group_verified_count, Number(sales.group_verified_amount)])
+    sRows.push(['团购预定（公司已买，待核销）', sales.group_locked_count, Number(sales.group_locked_amount)])
+    sRows.push(['合计（已售 + 团购预定）', sales.total_count, Number(sales.total_amount)])
+    sRows.push(['未售库存', sales.unsold_count, ''])
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sRows), '销售构成')
+
+    // 2) 按区域销售构成
+    const zsRows: any[] = [[
+      '车库区域', '车位总数', '已售数', '已售金额',
+      '零售数', '零售金额', '团购已核销数', '团购已核销金额',
+      '团购锁定数', '团购锁定金额', '未售数',
+    ]]
+    zoneSales.forEach(z =>
+      zsRows.push([
+        z.garage_zone, z.total, z.sold_count, Number(z.sold_amount),
+        z.retail_count, Number(z.retail_amount),
+        z.group_verified_count, Number(z.group_verified_amount),
+        z.group_locked_count, Number(z.group_locked_amount),
+        z.unsold_count,
+      ])
+    )
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(zsRows), '按区域销售构成')
+
+    // 3) 团购公司专项
+    const gRows: any[] = [[
+      '团购公司', '部门', '联系人', '锁定数', '锁定金额',
+      '已核销数', '已核销金额', '合计车位数', '合计金额', '核销率', '收款', '发票',
+    ]]
+    groupCompanies.forEach(c =>
+      gRows.push([
+        c.company_name, c.department || '—', c.contact_person || '—',
+        c.locked_count, Number(c.locked_amount),
+        c.verified_count, Number(c.verified_amount),
+        c.total_count, Number(c.total_amount),
+        `${(c.verify_rate * 100).toFixed(1)}%`,
+        c.is_paid ? '已付' : '未付',
+        c.invoice_type || '—',
+      ])
+    )
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gRows), '团购公司专项')
+
+    // 4) 销售趋势
+    const trRows: any[] = [['年月', '已售车位数', '已售金额', '零售数', '零售金额', '团购数', '团购金额']]
+    trend.forEach(t =>
+      trRows.push([
+        t.ym, t.sold_count, Number(t.sold_amount),
+        t.retail_count, Number(t.retail_amount),
+        t.group_count, Number(t.group_amount),
+      ])
+    )
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(trRows), '销售趋势')
+
+    // 5) 汇总指标
     const sumRows = [
       ['指标', '数值'],
       ['已售总金额（含团购已核销/团购锁定）', Number(summary.total_sold_amount)],
@@ -86,7 +157,7 @@ export default function ReportClient({
     ]
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sumRows), '汇总指标')
 
-    // 2) 按车库统计
+    // 6) 按车库统计
     const zRows: any[] = [['车库区域', '车位总数', '已售车位数', '金额', '未售车位数', '子母车位', '单体车位', '普通车位', '其他类型']]
     zones.forEach(z =>
       zRows.push([
@@ -107,14 +178,14 @@ export default function ReportClient({
     ])
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(zRows), '按车库统计')
 
-    // 3) 购买最多业主
+    // 7) 购买最多业主
     const tRows: any[] = [['排名', '业主', '房号', '车位数', '金额']]
     topOwners.forEach((r, i) =>
       tRows.push([i + 1, r.owner_name, r.house_key || '—', r.space_count, Number(r.total_amount)])
     )
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tRows), '购买最多业主')
 
-    // 4) 未购车位业主
+    // 8) 未购车位业主
     const nRows: any[] = [['房号', '楼栋', '单元', '房间', '业主', '电话']]
     notBought.forEach(r =>
       nRows.push([r.house_key || '—', r.building_no || '—', r.unit_no || '—', r.room_no || '—', r.owner_name, r.phone || '—'])
@@ -265,6 +336,161 @@ export default function ReportClient({
           </button>
         ))}
       </div>
+
+      {/* 按区域销售构成（零售 / 团购拆分） */}
+      {tab === 'zoneSales' && (
+        <Card title="按车库（区域）销售构成：已售拆分零售与团购">
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>车库区域</th>
+                  <th>车位总数</th>
+                  <th>已售数</th>
+                  <th>已售金额</th>
+                  <th>零售数</th>
+                  <th>零售金额</th>
+                  <th>团购已核销数</th>
+                  <th>团购已核销金额</th>
+                  <th>团购锁定数</th>
+                  <th>团购锁定金额</th>
+                  <th>未售数</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zoneSales.length === 0 && (
+                  <tr><td colSpan={11} className="text-center text-gray">暂无数据</td></tr>
+                )}
+                {zoneSales.map(z => (
+                  <tr key={z.garage_zone}>
+                    <td style={{ fontWeight: 600 }}>{z.garage_zone}</td>
+                    <td>{z.total}</td>
+                    <td>{z.sold_count}</td>
+                    <td style={{ color: '#fa8c16', fontWeight: 600 }}>{fmtMoney(z.sold_amount)}</td>
+                    <td>{z.retail_count}</td>
+                    <td>{fmtMoney(z.retail_amount)}</td>
+                    <td>{z.group_verified_count}</td>
+                    <td>{fmtMoney(z.group_verified_amount)}</td>
+                    <td>{z.group_locked_count}</td>
+                    <td>{fmtMoney(z.group_locked_amount)}</td>
+                    <td>{z.unsold_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {zoneSales.length > 0 && (
+                <tfoot>
+                  <tr style={{ fontWeight: 700, background: '#fafafa' }}>
+                    <td>合计</td>
+                    <td>{zoneSales.reduce((s, z) => s + Number(z.total), 0)}</td>
+                    <td>{zoneSales.reduce((s, z) => s + Number(z.sold_count), 0)}</td>
+                    <td style={{ color: '#fa8c16' }}>
+                      {fmtMoney(zoneSales.reduce((s, z) => s + Number(z.sold_amount), 0))}
+                    </td>
+                    <td>{zoneSales.reduce((s, z) => s + Number(z.retail_count), 0)}</td>
+                    <td>{fmtMoney(zoneSales.reduce((s, z) => s + Number(z.retail_amount), 0))}</td>
+                    <td>{zoneSales.reduce((s, z) => s + Number(z.group_verified_count), 0)}</td>
+                    <td>{fmtMoney(zoneSales.reduce((s, z) => s + Number(z.group_verified_amount), 0))}</td>
+                    <td>{zoneSales.reduce((s, z) => s + Number(z.group_locked_count), 0)}</td>
+                    <td>{fmtMoney(zoneSales.reduce((s, z) => s + Number(z.group_locked_amount), 0))}</td>
+                    <td>{zoneSales.reduce((s, z) => s + Number(z.unsold_count), 0)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* 团购公司专项 */}
+      {tab === 'group' && (
+        <Card title="团购公司专项：锁定 / 已核销 / 金额 / 收款 / 核销率">
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>团购公司</th>
+                  <th>部门</th>
+                  <th>联系人</th>
+                  <th>锁定数</th>
+                  <th>锁定金额</th>
+                  <th>已核销数</th>
+                  <th>已核销金额</th>
+                  <th>合计车位数</th>
+                  <th>合计金额</th>
+                  <th>核销率</th>
+                  <th>收款</th>
+                  <th>发票</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupCompanies.length === 0 && (
+                  <tr><td colSpan={12} className="text-center text-gray">暂无团购公司</td></tr>
+                )}
+                {groupCompanies.map(c => (
+                  <tr key={c.company_name}>
+                    <td style={{ fontWeight: 600 }}>{c.company_name}</td>
+                    <td>{c.department || '—'}</td>
+                    <td>{c.contact_person || '—'}</td>
+                    <td>{c.locked_count}</td>
+                    <td>{fmtMoney(c.locked_amount)}</td>
+                    <td>{c.verified_count}</td>
+                    <td style={{ color: '#fa8c16' }}>{fmtMoney(c.verified_amount)}</td>
+                    <td style={{ fontWeight: 600 }}>{c.total_count}</td>
+                    <td style={{ color: '#fa8c16', fontWeight: 600 }}>{fmtMoney(c.total_amount)}</td>
+                    <td>{(c.verify_rate * 100).toFixed(1)}%</td>
+                    <td>{c.is_paid ? '✅已付' : '⏳未付'}</td>
+                    <td>{c.invoice_type || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray" style={{ marginTop: 8 }}>
+            锁定 = 团购公司已买下但尚未核销给业主（status='团购锁定'）；
+            已核销 = 已转让给业主；核销率 = 已核销 /（锁定 + 已核销）。
+          </p>
+        </Card>
+      )}
+
+      {/* 销售趋势 */}
+      {tab === 'trend' && (
+        <Card title="销售趋势：按销售日期（sale_date）年月汇总">
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>年月</th>
+                  <th>已售车位数</th>
+                  <th>已售金额</th>
+                  <th>其中零售数</th>
+                  <th>零售金额</th>
+                  <th>其中团购数</th>
+                  <th>团购金额</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trend.length === 0 && (
+                  <tr><td colSpan={7} className="text-center text-gray">暂无销售日期数据</td></tr>
+                )}
+                {trend.map(t => (
+                  <tr key={t.ym}>
+                    <td style={{ fontWeight: 600 }}>{t.ym}</td>
+                    <td>{t.sold_count}</td>
+                    <td style={{ color: '#fa8c16', fontWeight: 600 }}>{fmtMoney(t.sold_amount)}</td>
+                    <td>{t.retail_count}</td>
+                    <td>{fmtMoney(t.retail_amount)}</td>
+                    <td>{t.group_count}</td>
+                    <td>{fmtMoney(t.group_amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray" style={{ marginTop: 8 }}>
+            仅统计 sale_date 非空且状态为已售 / 已核销的车位；团购核销不写入销售记录表，故以车位台账的 sale_date 为准。
+          </p>
+        </Card>
+      )}
 
       {/* 按车库未售 */}
       {tab === 'zone' && (

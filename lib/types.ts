@@ -357,6 +357,48 @@ export interface SalesComposition {
   unsold_count: number        // 未售车位数
 }
 
+// ---------- 按车库（区域）的销售构成（零售 / 团购拆分） ----------
+export interface ZoneSalesStat {
+  garage_zone: string
+  total: number                   // 车位总数
+  sold_count: number              // 已售合计（已售 / 已核销）
+  sold_amount: number
+  retail_count: number            // 其中：零售已售
+  retail_amount: number
+  group_verified_count: number    // 其中：团购已核销
+  group_verified_amount: number
+  group_locked_count: number      // 团购锁定（公司已买待核销）
+  group_locked_amount: number
+  unsold_count: number            // 未售
+}
+
+// ---------- 团购公司专项统计 ----------
+export interface GroupCompanyStat {
+  company_name: string
+  department: string              // 部门
+  contact_person: string          // 联系人
+  is_paid: boolean                // 收款状态
+  invoice_type: string            // 发票类型
+  locked_count: number            // 锁定数（团购锁定，已买未核销）
+  locked_amount: number
+  verified_count: number          // 已核销数
+  verified_amount: number
+  total_count: number             // 锁定 + 已核销
+  total_amount: number
+  verify_rate: number             // 核销率 0~1（已核销 / 总数，无数据时为 0）
+}
+
+// ---------- 销售趋势（按 sale_date 年月汇总） ----------
+export interface SalesTrendPoint {
+  ym: string                      // YYYY-MM
+  sold_count: number              // 当月已售车位数
+  sold_amount: number
+  retail_count: number            // 其中零售
+  retail_amount: number
+  group_count: number             // 其中团购已核销
+  group_amount: number
+}
+
 // ---------- 按车库（区域）统计 ----------
 export interface ZoneStat {
   garage_zone: string        // 车库区域

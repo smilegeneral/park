@@ -18,6 +18,9 @@ import type {
   GarageMap,
   ReportSummary,
   SalesComposition,
+  ZoneSalesStat,
+  GroupCompanyStat,
+  SalesTrendPoint,
   ZoneUnsoldStat,
   TopOwnerStat,
   NotBoughtOwnerStat,
@@ -656,6 +659,99 @@ export async function getSalesComposition(): Promise<SalesComposition> {
     FROM parking_spaces
   `)
   return rows[0] as SalesComposition
+}
+
+// 按车库（区域）的销售构成：把已售拆成零售与团购已核销，并单列团购锁定
+export async function getZoneSalesBreakdown(): Promise<ZoneSalesStat[]> {
+  const { rows } = await pool.query(`
+    SELECT
+      garage_zone,
+      COUNT(*)::int AS total,
+
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN 1 ELSE 0 END), 0)::int AS sold_count,
+      COALESCE(SUM(CASE WHEN status IN ('已售','已核销') THEN COALESCE(price,0) END), 0)::numeric AS sold_amount,
+
+      COALESCE(SUM(CASE WHEN status = '已售' AND COALESCE(is_group_buy, FALSE) = FALSE THEN 1 ELSE 0 END), 0)::int AS retail_count,
+      COALESCE(SUM(CASE WHEN status = '已售' AND COALESCE(is_group_buy, FALSE) = FALSE THEN COALESCE(price,0) END), 0)::numeric AS retail_amount,
+
+      COALESCE(SUM(CASE WHEN (status = '已售' AND is_group_buy = TRUE) OR status = '已核销' THEN 1 ELSE 0 END), 0)::int AS group_verified_count,
+      COALESCE(SUM(CASE WHEN (status = '已售' AND is_group_buy = TRUE) OR status = '已核销' THEN COALESCE(price,0) END), 0)::numeric AS group_verified_amount,
+
+      COALESCE(SUM(CASE WHEN status = '团购锁定' THEN 1 ELSE 0 END), 0)::int AS group_locked_count,
+      COALESCE(SUM(CASE WHEN status = '团购锁定' THEN COALESCE(price,0) END), 0)::numeric AS group_locked_amount,
+
+      COALESCE(SUM(CASE WHEN status = '未售' THEN 1 ELSE 0 END), 0)::int AS unsold_count
+    FROM parking_spaces
+    GROUP BY garage_zone
+    ORDER BY garage_zone
+  `)
+  return rows as ZoneSalesStat[]
+}
+
+// 团购公司专项：各公司的锁定数 / 已核销数 / 金额 / 收款状态 / 核销率。
+// 通过 parking_spaces.group_company 关联合团购公司名。
+export async function getGroupCompanyStats(): Promise<GroupCompanyStat[]> {
+  const { rows } = await pool.query(`
+    SELECT
+      c.company_name,
+      COALESCE(c.department, '')      AS department,
+      COALESCE(c.contact_person, '')  AS contact_person,
+      COALESCE(c.is_paid, FALSE)      AS is_paid,
+      COALESCE(c.invoice_type, '')    AS invoice_type,
+
+      COALESCE(SUM(CASE WHEN s.status = '团购锁定' THEN 1 ELSE 0 END), 0)::int AS locked_count,
+      COALESCE(SUM(CASE WHEN s.status = '团购锁定' THEN COALESCE(s.price,0) END), 0)::numeric AS locked_amount,
+
+      COALESCE(SUM(CASE WHEN (s.status = '已售' AND s.is_group_buy = TRUE) OR s.status = '已核销' THEN 1 ELSE 0 END), 0)::int AS verified_count,
+      COALESCE(SUM(CASE WHEN (s.status = '已售' AND s.is_group_buy = TRUE) OR s.status = '已核销' THEN COALESCE(s.price,0) END), 0)::numeric AS verified_amount
+    FROM group_buy_company c
+    LEFT JOIN parking_spaces s ON s.group_company = c.company_name
+    GROUP BY c.company_id, c.company_name, c.department, c.contact_person, c.is_paid, c.invoice_type
+    ORDER BY verified_count DESC, locked_count DESC, c.company_name
+  `)
+
+  // 核销率与合计在应用层计算，避免 SQL 中重复书写复杂 CASE
+  return (rows as any[]).map(r => {
+    const locked = Number(r.locked_count) || 0
+    const verified = Number(r.verified_count) || 0
+    const total = locked + verified
+    return {
+      company_name: r.company_name,
+      department: r.department || '',
+      contact_person: r.contact_person || '',
+      is_paid: Boolean(r.is_paid),
+      invoice_type: r.invoice_type || '',
+      locked_count: locked,
+      locked_amount: r.locked_amount,
+      verified_count: verified,
+      verified_amount: r.verified_amount,
+      total_count: total,
+      total_amount: (Number(r.locked_amount) || 0) + (Number(r.verified_amount) || 0),
+      verify_rate: total > 0 ? verified / total : 0,
+    } as GroupCompanyStat
+  })
+}
+
+// 销售趋势：按 sale_date 的年月汇总已售车位（拆分零售 / 团购已核销）
+export async function getSalesTrend(): Promise<SalesTrendPoint[]> {
+  const { rows } = await pool.query(`
+    SELECT
+      TO_CHAR(sale_date, 'YYYY-MM') AS ym,
+      COUNT(*)::int AS sold_count,
+      COALESCE(SUM(COALESCE(price,0)), 0)::numeric AS sold_amount,
+
+      COALESCE(SUM(CASE WHEN status = '已售' AND COALESCE(is_group_buy, FALSE) = FALSE THEN 1 ELSE 0 END), 0)::int AS retail_count,
+      COALESCE(SUM(CASE WHEN status = '已售' AND COALESCE(is_group_buy, FALSE) = FALSE THEN COALESCE(price,0) END), 0)::numeric AS retail_amount,
+
+      COALESCE(SUM(CASE WHEN (status = '已售' AND is_group_buy = TRUE) OR status = '已核销' THEN 1 ELSE 0 END), 0)::int AS group_count,
+      COALESCE(SUM(CASE WHEN (status = '已售' AND is_group_buy = TRUE) OR status = '已核销' THEN COALESCE(price,0) END), 0)::numeric AS group_amount
+    FROM parking_spaces
+    WHERE sale_date IS NOT NULL
+      AND status IN ('已售','已核销')
+    GROUP BY TO_CHAR(sale_date, 'YYYY-MM')
+    ORDER BY ym DESC
+  `)
+  return rows as SalesTrendPoint[]
 }
 
 // 按车库（区域）统计：车位总数、已售车位数、金额、未收车位（按类型细分）
