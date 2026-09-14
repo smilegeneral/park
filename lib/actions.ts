@@ -463,13 +463,18 @@ async function createGroupBuyPurchaseInner(input: GroupBuyPurchaseInput) {
 
     // 2. 联动锁定车位（乐观锁，只有未售状态才能锁）
     //    同时写入车位总账变更日志（parking_space_lifecycle_log）
+    //    团购车位金额（= 车位实际卖价）：按登记总金额平摊到每个车位写入 price，
+    //    以便「团购预定（待核销）」与后续「团购已核销」均能正确汇总金额。
+    //    （核销动作明确不改写 price，故此处必须写入团购实际卖价。）
+    const lockCount = input.space_ids.length
+    const unitPrice = lockCount > 0 ? Number(input.amount) / lockCount : 0
     for (const sid of input.space_ids) {
       const r = await client.query(
         `UPDATE parking_spaces
-         SET status = '团购锁定', group_company = $2, updated_at = NOW()
+         SET status = '团购锁定', group_company = $2, price = $3, updated_at = NOW()
          WHERE space_id = $1 AND status = '未售'
          RETURNING *`,
-        [sid, input.company_name]
+        [sid, input.company_name, unitPrice]
       )
       if (r.rowCount === 0) {
         throw new Error(`车位 ${sid} 锁定失败（可能已被占用或非未售状态）`)
@@ -577,15 +582,16 @@ export async function swapGroupBuySpace(input: GroupSwapInput) {
       [input.from_space_id]
     )
 
-    // 新车位继承团购公司信息并锁定
+    // 新车位继承团购公司信息与团购价（实际卖价）并锁定
     await client.query(
       `UPDATE parking_spaces
        SET status = '团购锁定',
            is_group_buy = TRUE,
            group_company = $2,
+           price = $3,
            updated_at = NOW()
        WHERE space_id = $1`,
-      [input.to_space_id, from.group_company]
+      [input.to_space_id, from.group_company, from.price]
     )
 
     // 同步团购公司主档的车位列表
