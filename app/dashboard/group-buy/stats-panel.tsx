@@ -154,7 +154,7 @@ export default function StatsPanel({
                 <th>电话</th>
                 <th>车位号列表</th>
                 <th>数量</th>
-                <th>金额</th>
+                <th>团购车位金额（实际卖价）</th>
                 <th>付款</th>
                 <th>发票</th>
                 <th>登记时间</th>

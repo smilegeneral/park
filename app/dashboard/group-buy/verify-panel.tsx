@@ -114,12 +114,12 @@ export default function VerifyPanel({
           <input value={houseKey} onChange={(e) => setHouseKey(e.target.value)} style={inp} placeholder="如 1-2-301" />
         </div>
         <div>
-          <label className="text-sm" style={{ display: 'block', marginBottom: 4 }}>销售金额（元）</label>
+          <label className="text-sm" style={{ display: 'block', marginBottom: 4 }}>核销金额（团购公司对外出售价·参考）</label>
           <input
             value={saleAmount}
             onChange={(e) => setSaleAmount(e.target.value.replace(/[^\d.]/g, ''))}
             style={inp}
-            placeholder="核销销售金额"
+            placeholder="团购公司对外出售价"
             inputMode="decimal"
           />
         </div>

@@ -99,7 +99,7 @@ export default async function GroupBuyPage() {
               <thead>
                 <tr>
                   <th>公司名称</th><th>部门</th><th>联系人</th><th>电话</th>
-                  <th>数量</th><th>车位号</th><th>金额</th><th>付款</th><th>发票</th><th>登记时间</th><th>操作</th>
+                  <th>数量</th><th>车位号</th><th>团购车位金额（实际卖价）</th><th>付款</th><th>发票</th><th>登记时间</th><th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -138,7 +138,7 @@ export default async function GroupBuyPage() {
             <table className="table" style={{ fontSize: 12 }}>
               <thead>
                 <tr>
-                  <th>团购公司</th><th>车位号</th><th>业主</th><th>房号</th><th>销售金额</th>
+                  <th>团购公司</th><th>车位号</th><th>业主</th><th>房号</th><th>核销金额（对外出售价·参考）</th>
                   <th>确认单号</th><th>核销日期</th><th>经办人</th><th>操作</th>
                 </tr>
               </thead>
