@@ -1,51 +1,39 @@
 // lib/mailer.ts
-// 通用 SMTP 邮件发送（nodemailer）。所有变量从环境变量读取，
-// 支持 QQ/163 企业邮、阿里云/腾讯云邮件推送等任意 SMTP 服务。
-import nodemailer from 'nodemailer'
-import type { Transporter } from 'nodemailer'
-
-let cached: Transporter | null = null
-
-function getTransporter(): Transporter {
-  if (cached) return cached
-  const host = process.env.SMTP_HOST
-  if (!host) {
-    throw new Error('未配置 SMTP_HOST，无法发送邮件')
-  }
-  const port = Number(process.env.SMTP_PORT || 465)
-  cached = nodemailer.createTransport({
-    host,
-    port,
-    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
-    auth: {
-      user: process.env.SMTP_USER || '',
-      pass: process.env.SMTP_PASS || '',
-    },
-    // 关键：Vercel serverless 函数默认 10s 超时，而 nodemailer 默认连接超时极长，
-    // 若 SMTP 不通会一直挂起直到函数被强制终止（表现为 Cloudflare 502 Bad Gateway）。
-    // 显式设短超时，让发送失败时快速返回友好错误而非 502。
-    connectionTimeout: 8000,
-    socketTimeout: 8000,
-    greetingTimeout: 8000,
-  })
-  return cached
-}
+// 通过 Resend HTTP API 发送邮件（无需开放 SMTP 端口，对 Vercel serverless 最友好）。
+// 文档：https://resend.com/docs/api-reference/emails/send-email
+// 仅需两个环境变量：RESEND_API_KEY（必填）、RESEND_FROM（发件地址）。
+const RESEND_API_URL = 'https://api.resend.com/emails'
 
 export function isMailConfigured(): boolean {
-  return !!process.env.SMTP_HOST
+  return !!process.env.RESEND_API_KEY
 }
 
 // 发送登录验证码邮件
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
-  const transporter = getTransporter()
-  const from = process.env.MAIL_FROM || process.env.SMTP_USER || ''
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    throw new Error('未配置 RESEND_API_KEY，无法发送邮件')
+  }
+  const from = process.env.RESEND_FROM || 'onboarding@resend.dev'
   const appName = '车位管理系统'
-  await transporter.sendMail({
-    from,
-    to,
-    subject: `[${appName}] 您的登录验证码`,
-    text: `您的登录验证码为：${code}，5 分钟内有效。如非本人操作，请忽略本邮件。`,
-    html: `
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8000)
+
+  let res: Response
+  try {
+    res = await fetch(RESEND_API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to,
+        subject: `[${appName}] 您的登录验证码`,
+        text: `您的登录验证码为：${code}，5 分钟内有效。如非本人操作，请忽略本邮件。`,
+        html: `
       <div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:420px;margin:0 auto;padding:24px;background:#fff;border:1px solid #eee;border-radius:8px">
         <h2 style="color:#1677ff;margin:0 0 16px">${appName}</h2>
         <p style="font-size:14px;color:#333">您好，您正在登录系统，本次登录验证码为：</p>
@@ -53,5 +41,26 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
         <p style="font-size:13px;color:#888">验证码 5 分钟内有效。若非本人操作，请忽略本邮件，切勿将验证码告知他人。</p>
       </div>
     `,
-  })
+      }),
+      signal: controller.signal,
+    })
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      throw new Error('邮件服务连接超时（8s）')
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const err = await res.json()
+      detail = err?.message || JSON.stringify(err)
+    } catch {
+      detail = await res.text()
+    }
+    throw new Error(`Resend 返回 ${res.status}: ${detail}`)
+  }
 }
