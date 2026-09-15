@@ -13,6 +13,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         username: { label: '账号', type: 'text' },
         password: { label: '密码', type: 'password' },
+        code: { label: '邮箱验证码', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
@@ -23,7 +24,7 @@ export const authOptions: NextAuthOptions = {
         let rows: any[]
         try {
           const res = await pool.query(
-            `SELECT id, username, password_hash, role
+            `SELECT id, username, password_hash, role, email
              FROM public.admin_user  -- 显式指定public schema，避免连错库
              WHERE username = $1`,
             [credentials.username]
@@ -48,15 +49,34 @@ export const authOptions: NextAuthOptions = {
 
         if (!isValid) return null
 
+        const user = rows[0]
+
+        // 双重验证（2FA）：已绑定邮箱的账号，密码正确后还需校验邮箱验证码
+        if (user.email) {
+          const code = credentials.code
+          if (!code) return null
+          const otpRes = await pool.query(
+            `SELECT code, expires_at FROM email_otp
+             WHERE email = $1 ORDER BY created_at DESC LIMIT 1`,
+            [user.email]
+          )
+          if (otpRes.rowCount === 0) return null
+          const otp = otpRes.rows[0]
+          if (new Date(otp.expires_at).getTime() < Date.now()) return null
+          if (otp.code !== code) return null
+          // 一次性消费，防止验证码复用
+          await pool.query('DELETE FROM email_otp WHERE email = $1', [user.email])
+        }
+
         return {
-          id: rows[0].id.toString(),
-          name: rows[0].username,
-          role: rows[0].role,
-          display_name: rows[0].display_name || undefined,
-          permissions: rows[0].role >= 2
+          id: user.id.toString(),
+          name: user.username,
+          role: user.role,
+          display_name: user.display_name || undefined,
+          permissions: user.role >= 2
             ? undefined // role>=2 视为全权限，由前端判定
-            : (rows[0].permissions || '{}').startsWith('[')
-              ? JSON.parse(rows[0].permissions)
+            : (user.permissions || '{}').startsWith('[')
+              ? JSON.parse(user.permissions)
               : [],
         }
       },

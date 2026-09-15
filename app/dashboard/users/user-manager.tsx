@@ -7,8 +7,9 @@ import { ALL_PERMISSIONS, ROLE_LABELS } from '@/lib/types'
 
 // ============================================================
 //  用户与角色管理
-//  - 新增用户（账号/密码/显示名/角色/权限）
+//  - 新增用户（账号/密码/显示名/邮箱/角色/权限）
 //  - 修改角色与权限、重置密码
+//  - 邮箱：绑定后登录需邮箱验证码（2FA）
 // ============================================================
 
 const ROLES = [1, 2, 3]
@@ -45,7 +46,7 @@ export default function UserManager({ users }: { users: any[] }) {
           <table className="table">
             <thead>
               <tr>
-                <th>账号</th><th>显示名</th><th>角色</th><th>权限</th><th>操作</th>
+                <th>账号</th><th>显示名</th><th>角色</th><th>邮箱（2FA）</th><th>权限</th><th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -58,6 +59,7 @@ export default function UserManager({ users }: { users: any[] }) {
                       {ROLE_LABELS[u.role] || u.role}
                     </span>
                   </td>
+                  <td className="text-sm">{u.email || <span className="text-gray">未绑定</span>}</td>
                   <td className="text-sm text-gray">
                     {u.role >= 2 ? '全部权限' : (u.permissions?.length ? u.permissions.map((p: string) => ALL_PERMISSIONS.find(x => x.code === p)?.label || p).join('、') : '无')}
                   </td>
@@ -82,6 +84,7 @@ function UserForm({ initial, onClose, onMsg }: { initial: any | null; onClose: (
   const [username, setUsername] = useState(initial?.username || '')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState(initial?.display_name || '')
+  const [email, setEmail] = useState(initial?.email || '')
   const [role, setRole] = useState(initial?.role || 1)
   const [perms, setPerms] = useState<string[]>(initial?.permissions || [])
   const [pending, startTransition] = useTransition()
@@ -99,10 +102,10 @@ function UserForm({ initial, onClose, onMsg }: { initial: any | null; onClose: (
     startTransition(async () => {
       try {
         if (!isEdit) {
-          await createUser({ username, password, display_name: displayName, role, permissions: perms })
+          await createUser({ username, password, display_name: displayName, role, permissions: perms, email: email.trim() || undefined })
           onMsg({ type: 'ok', text: `✅ 用户 ${username} 创建成功` })
         } else {
-          await updateUserRole({ id: initial.id, role, permissions: perms, display_name: displayName })
+          await updateUserRole({ id: initial.id, role, permissions: perms, display_name: displayName, email: email.trim() || null })
           onMsg({ type: 'ok', text: `✅ 用户 ${username} 信息已更新` })
         }
         onClose()
@@ -124,6 +127,9 @@ function UserForm({ initial, onClose, onMsg }: { initial: any | null; onClose: (
         </Labeled>
         <Labeled label="显示名">
           <input className="input" value={displayName} onChange={e => setDisplayName(e.target.value)} />
+        </Labeled>
+        <Labeled label="邮箱（启用登录验证码 2FA）">
+          <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="如 user@company.com，留空则仅密码登录" />
         </Labeled>
         <Labeled label="角色">
           <select className="select" value={role} onChange={e => setRole(Number(e.target.value))}>

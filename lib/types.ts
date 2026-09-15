@@ -272,6 +272,7 @@ export interface AdminUser {
   username: string
   display_name: string
   role: number
+  email?: string          // 绑定邮箱后登录需邮箱验证码（2FA）
   permissions: string[]   // 仅 role=1 时生效
   created_at?: string
 }

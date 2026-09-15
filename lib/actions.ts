@@ -819,6 +819,7 @@ export interface CreateUserInput {
   display_name: string
   role: number
   permissions: string[]
+  email?: string
 }
 
 // 新增用户
@@ -831,23 +832,23 @@ export async function createUser(input: CreateUserInput) {
     // role>=2 视为拥有全部权限，permissions 仅对 role=1 生效
     const perms = input.role >= 2 ? '[]' : JSON.stringify(input.permissions)
     const r = await client.query(
-      `INSERT INTO admin_user (username, password_hash, display_name, role, permissions)
-       VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-      [input.username, hash, input.display_name || input.username, input.role, perms]
+      `INSERT INTO admin_user (username, password_hash, display_name, role, permissions, email)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [input.username, hash, input.display_name || input.username, input.role, perms, input.email?.trim() || null]
     )
     return { id: r.rows[0].id }
   })
 }
 
 // 修改用户角色与权限
-export async function updateUserRole(input: { id: number; role: number; permissions: string[]; display_name?: string }) {
+export async function updateUserRole(input: { id: number; role: number; permissions: string[]; display_name?: string; email?: string }) {
   if (!await requireRole(ROLE_ADMIN)) return unauthorized('修改用户角色')
   return withTransaction(async (client) => {
     const perms = input.role >= 2 ? '[]' : JSON.stringify(input.permissions)
     await client.query(
-      `UPDATE admin_user SET role = $1, permissions = $2, display_name = COALESCE($3, display_name), updated_at = NOW()
-       WHERE id = $4`,
-      [input.role, perms, input.display_name || null, input.id]
+      `UPDATE admin_user SET role = $1, permissions = $2, display_name = COALESCE($3, display_name), email = $4, updated_at = NOW()
+       WHERE id = $5`,
+      [input.role, perms, input.display_name || null, input.email?.trim() || null, input.id]
     )
     return { ok: true }
   })

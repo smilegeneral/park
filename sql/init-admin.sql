@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS admin_user (
   password_hash TEXT NOT NULL,
   role SMALLINT DEFAULT 1,         -- 1=销售  2=管理员
   display_name VARCHAR(50),
+  email VARCHAR(120),              -- 绑定邮箱后登录需邮箱验证码（2FA）
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -236,3 +237,13 @@ COMMENT ON COLUMN parking_space_lifecycle_log.change_order_no IS '变更单号';
 
 CREATE INDEX IF NOT EXISTS idx_lifecycle_space ON parking_space_lifecycle_log(space_id);
 CREATE INDEX IF NOT EXISTS idx_lifecycle_time ON parking_space_lifecycle_log(created_at);
+
+-- ---------- 邮箱验证码临时表（登录 2FA） ----------
+CREATE TABLE IF NOT EXISTS email_otp (
+  id          SERIAL PRIMARY KEY,
+  email       TEXT NOT NULL,
+  code        TEXT NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_email_otp_email ON email_otp (email);

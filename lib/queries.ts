@@ -257,7 +257,7 @@ export async function getGroupBuyVerifyDetails(companyName?: string): Promise<Gr
 // ---------- 后台用户管理 ----------
 export async function getAdminUsers(): Promise<AdminUser[]> {
   const { rows } = await pool.query(
-    `SELECT id, username, display_name, role, COALESCE(permissions,'{}') AS permissions
+    `SELECT id, username, display_name, role, email, COALESCE(permissions,'{}') AS permissions
      FROM admin_user ORDER BY role DESC, id ASC`
   )
   return rows.map(r => ({
@@ -265,6 +265,7 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
     username: r.username,
     display_name: r.display_name || '',
     role: r.role,
+    email: r.email || '',
     permissions: (r.permissions || '{}').startsWith('[')
       ? JSON.parse(r.permissions)
       : [],
