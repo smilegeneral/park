@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     try {
       await sendOtpEmail(user.email, code)
     } catch (mailErr: any) {
+      console.error('[send-code] 邮件发送失败:', (mailErr as Error)?.message, mailErr?.code)
       return NextResponse.json(
         { ok: false, error: '验证码邮件发送失败：' + (mailErr?.message || String(mailErr)) },
         { status: 502 }

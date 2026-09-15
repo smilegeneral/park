@@ -21,6 +21,12 @@ function getTransporter(): Transporter {
       user: process.env.SMTP_USER || '',
       pass: process.env.SMTP_PASS || '',
     },
+    // 关键：Vercel serverless 函数默认 10s 超时，而 nodemailer 默认连接超时极长，
+    // 若 SMTP 不通会一直挂起直到函数被强制终止（表现为 Cloudflare 502 Bad Gateway）。
+    // 显式设短超时，让发送失败时快速返回友好错误而非 502。
+    connectionTimeout: 8000,
+    socketTimeout: 8000,
+    greetingTimeout: 8000,
   })
   return cached
 }

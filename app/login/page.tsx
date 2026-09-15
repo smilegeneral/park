@@ -25,15 +25,24 @@ export default function LoginPage() {
 
   async function requestCode() {
     setLoading(true)
+    setError('')
     try {
       const r = await fetch('/api/auth/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       })
-      const data = await r.json()
+      // 先取原始文本，避免后端返回非 JSON（如 404/崩溃页）时 r.json() 抛错被误判为“网络错误”
+      const text = await r.text()
+      let data: any = {}
+      try {
+        data = JSON.parse(text)
+      } catch {
+        setError('服务异常（HTTP ' + r.status + '）：' + text.slice(0, 200))
+        return false
+      }
       if (!data.ok) {
-        setError(data.error || '请求失败，请重试')
+        setError(data.error || '请求失败（HTTP ' + r.status + '），请重试')
         return false
       }
       if (data.twoFactor) {
@@ -54,23 +63,29 @@ export default function LoginPage() {
 
   async function doSignIn(otp: string) {
     setLoading(true)
-    const res = await signIn('credentials', {
-      username,
-      password,
-      code: otp || undefined,
-      redirect: false,
-    })
-    setLoading(false)
-    if (res?.error) {
-      setError(otp ? '验证码错误或已过期，请重新获取' : '账号或密码错误')
-      return
+    setError('')
+    try {
+      const res = await signIn('credentials', {
+        username,
+        password,
+        code: otp || undefined,
+        redirect: false,
+      })
+      if (res?.error) {
+        setError(otp ? '验证码错误或已过期，请重新获取' : '账号或密码错误')
+        return
+      }
+      if (username.trim() === 'guest') {
+        router.push('/dashboard/distribution')
+      } else {
+        router.push('/dashboard')
+      }
+      router.refresh()
+    } catch (e: any) {
+      setError('登录服务异常：' + (e?.message || e))
+    } finally {
+      setLoading(false)
     }
-    if (username.trim() === 'guest') {
-      router.push('/dashboard/distribution')
-    } else {
-      router.push('/dashboard')
-    }
-    router.refresh()
   }
 
   async function submitPassword(e: React.FormEvent) {
