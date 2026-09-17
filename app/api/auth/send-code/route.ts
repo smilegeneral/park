@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     if (!isMailConfigured()) {
       return NextResponse.json(
         { ok: false, error: '邮件服务未配置，无法发送验证码，请联系管理员' },
-        { status: 500 }
+        { status: 200 }
       )
     }
 
@@ -57,12 +57,12 @@ export async function POST(req: NextRequest) {
       console.error('[send-code] 邮件发送失败:', (mailErr as Error)?.message, mailErr?.code)
       return NextResponse.json(
         { ok: false, error: '验证码邮件发送失败：' + (mailErr?.message || String(mailErr)) },
-        { status: 502 }
+        { status: 200 }
       )
     }
 
     return NextResponse.json({ ok: true, twoFactor: true })
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || '服务器错误' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: e?.message || '服务器错误' }, { status: 200 })
   }
 }
