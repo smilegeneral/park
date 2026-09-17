@@ -4,6 +4,11 @@
 // 仅需两个环境变量：RESEND_API_KEY（必填）、RESEND_FROM（发件地址）。
 const RESEND_API_URL = 'https://api.resend.com/emails'
 
+// Vercel serverless 默认 10s（Hobby）超时。注意：AbortController 的 signal 在 fetch 的
+// DNS/连接建立阶段不一定生效，单靠它无法阻止“连接挂起”导致函数被 Vercel 杀掉（表现为 Cloudflare 502）。
+// 因此用 Promise.race 兜底，确保在 5s 内必定返回，避免函数超时。
+const EMAIL_SEND_TIMEOUT = 5000
+
 export function isMailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY
 }
@@ -18,22 +23,27 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
   const appName = '车位管理系统'
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 8000)
+  const timer = setTimeout(() => controller.abort(), EMAIL_SEND_TIMEOUT)
+  // 兜底超时：即使 fetch 在连接阶段挂起、AbortSignal 未生效，也能在 5s 后 reject
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('邮件服务连接超时（5s）')), EMAIL_SEND_TIMEOUT)
+  )
 
   let res: Response
   try {
-    res = await fetch(RESEND_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject: `[${appName}] 您的登录验证码`,
-        text: `您的登录验证码为：${code}，5 分钟内有效。如非本人操作，请忽略本邮件。`,
-        html: `
+    res = await Promise.race([
+      fetch(RESEND_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from,
+          to,
+          subject: `[${appName}] 您的登录验证码`,
+          text: `您的登录验证码为：${code}，5 分钟内有效。如非本人操作，请忽略本邮件。`,
+          html: `
       <div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:420px;margin:0 auto;padding:24px;background:#fff;border:1px solid #eee;border-radius:8px">
         <h2 style="color:#1677ff;margin:0 0 16px">${appName}</h2>
         <p style="font-size:14px;color:#333">您好，您正在登录系统，本次登录验证码为：</p>
@@ -41,12 +51,14 @@ export async function sendOtpEmail(to: string, code: string): Promise<void> {
         <p style="font-size:13px;color:#888">验证码 5 分钟内有效。若非本人操作，请忽略本邮件，切勿将验证码告知他人。</p>
       </div>
     `,
+        }),
+        signal: controller.signal,
       }),
-      signal: controller.signal,
-    })
+      timeoutPromise,
+    ])
   } catch (e: any) {
-    if (e?.name === 'AbortError') {
-      throw new Error('邮件服务连接超时（8s）')
+    if (e?.name === 'AbortError' || /超时/.test(e?.message || '')) {
+      throw new Error('邮件服务连接超时（5s）')
     }
     throw e
   } finally {
