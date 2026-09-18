@@ -9,7 +9,8 @@ const IDLE_TIMEOUT = 30 * 60 * 1000
 const RESET_THROTTLE = 60 * 1000
 
 export default function AutoLogout() {
-  const { status } = useSession()
+  const session = useSession()
+  const status = session?.status
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastReset = useRef(0)
 
