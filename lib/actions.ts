@@ -920,7 +920,7 @@ export async function changeMyPassword(input: { userId: number; oldPassword: str
 }
 
 // ==================== 车位分布图：上传车库图片 ====================
-// zone 限定为六个区之一；image_url 为对象存储公开 URL（R2）
+// zone 限定为六个区之一；image_url 为本地存储公开 URL（/api/files/...，由 lib/local-storage 生成）
 export interface UploadGarageMapInput {
   zone: string
   image_url: string

@@ -1,6 +1,6 @@
 // 统一图片存储门面：根据部署地址（NEXTAUTH_URL）自动选择存储后端。
 //
-//   NEXTAUTH_URL === 'http://parks.cc.cd'  -> 本地磁盘存储（应用服务器本机）
+//   NEXTAUTH_URL === 'https://parks.cc.cd'  -> 本地磁盘存储（应用服务器本机）
 //   其他（如 Vercel / 自有域名）           -> Cloudflare R2 对象存储
 //
 // 上游（API 路由 / actions）只需调用 saveUpload / deleteUpload，无需关心具体后端，
@@ -11,11 +11,12 @@ import { saveBuffer, extFromMime, deleteByUrl } from './local-storage'
 import { uploadToR2, deleteFromR2, keyFromUrl, getPublicUrl } from './object-storage'
 
 // 使用本地磁盘存储的判定地址（私有化部署在应用服务器本机时使用）
-const LOCAL_AUTH_URL = 'http://parks.cc.cd'
+const LOCAL_AUTH_URL = 'https://parks.cc.cd'
 
 // 每次调用时实时判断，避免模块加载期环境变量未就绪导致误判
 export function isLocalStorage(): boolean {
-  return (process.env.NEXTAUTH_URL || '').trim() === LOCAL_AUTH_URL
+  const url = (process.env.NEXTAUTH_URL || '').trim().replace(/\/+$/, '')
+  return url === LOCAL_AUTH_URL.replace(/\/+$/, '')
 }
 
 // 业务侧常量的便捷导出（mime 映射与存储后端无关，统一从这里取）
